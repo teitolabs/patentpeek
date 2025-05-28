@@ -14,27 +14,25 @@ def _process_structured_condition_to_string(condition_payload):
         if not raw_terms_from_text: return ""
 
         selected_scopes_input = condition_data.get('selectedScopes', ['FT'])
+        # Ensure selected_scopes is a list
         selected_scopes = list(selected_scopes_input) if isinstance(selected_scopes_input, (list, set)) else ['FT']
         
         term_operator = condition_data.get('termOperator', 'ALL')
         
         content_terms = []
         if term_operator == 'EXACT': 
-            content_terms = [text] # Whole text is one term
+            content_terms = [text] 
         else:
-            # For ANY/ALL, filter out our own operator words if user typed them,
-            # as we are applying the operator based on term_operator.
-            # This is a basic filter.
-            if term_operator in ['ANY', 'ALL', 'NONE']: # NONE also operates on individual terms
+            if term_operator in ['ANY', 'ALL', 'NONE']: 
                 content_terms = [t for t in raw_terms_from_text if t.upper() not in ['OR', 'AND', 'NOT']]
-                if not content_terms and raw_terms_from_text: # If all words were operators, use raw (edge case)
+                if not content_terms and raw_terms_from_text: 
                     content_terms = raw_terms_from_text
-            else: # For other potential future operators, or if no filtering desired
+            else: 
                 content_terms = raw_terms_from_text
         
-        if not content_terms: return "" # If filtering resulted in no terms
+        if not content_terms: return ""
 
-        processed_terms_content = "" # This will be the core content, e.g., "search phrase", "(A OR B)"
+        processed_terms_content = "" 
 
         if term_operator == 'EXACT':
             processed_terms_content = f'"{text}"' 
@@ -53,47 +51,54 @@ def _process_structured_condition_to_string(condition_payload):
         if 'FT' in selected_scopes or not selected_scopes: 
             return processed_terms_content 
         else:
-            is_ti_selected = 'TI' in selected_scopes
-            is_ab_selected = 'AB' in selected_scopes
-            is_cl_selected = 'CL' in selected_scopes
-            distinct_non_ft_scopes = set(s for s in selected_scopes if s != 'FT')
+            # Use a list derived from selected_scopes to maintain order, filtering FT
+            ordered_non_ft_scopes = [s for s in selected_scopes if s != 'FT']
 
-            if is_ti_selected and is_ab_selected and is_cl_selected and len(distinct_non_ft_scopes) == 3:
+            if not ordered_non_ft_scopes: # Should not happen if FT was not the only scope
+                return processed_terms_content
+
+            # Check for TAC: if TI, AB, CL are all present and are the *only* non-FT scopes
+            is_ti_present = 'TI' in ordered_non_ft_scopes
+            is_ab_present = 'AB' in ordered_non_ft_scopes
+            is_cl_present = 'CL' in ordered_non_ft_scopes
+            if is_ti_present and is_ab_present and is_cl_present and len(ordered_non_ft_scopes) == 3:
+                # This check ensures that ordered_non_ft_scopes *only* contains TI, AB, CL.
                 return f"TAC=({processed_terms_content})"
             
             scoped_parts = []
-            # Handle CPC with ANY operator on multiple codes first if it's the only non-FT scope or primary
-            if 'CPC' in distinct_non_ft_scopes and term_operator == 'ANY' and len(content_terms) > 1:
-                # This assumes content_terms are individual CPC codes for ANY operator
-                cpc_items_for_any = content_terms # Already filtered if needed
-                for cpc_code_item in cpc_items_for_any:
-                    scoped_parts.append(f"CPC=({cpc_code_item})") 
-                # Remove CPC from distinct_non_ft_scopes so it's not processed again if it was part of other scopes
-                distinct_non_ft_scopes.discard('CPC') 
             
-            # General scope application for remaining distinct_non_ft_scopes
-            for scope in distinct_non_ft_scopes:
-                if scope == 'TI': scoped_parts.append(f"TI=({processed_terms_content})")
-                elif scope == 'AB': scoped_parts.append(f"AB=({processed_terms_content})")
-                elif scope == 'CL': scoped_parts.append(f"CL=({processed_terms_content})")
-                elif scope == 'CPC': # Handles single CPC or CPC with non-ANY/non-multi-item operators
-                    scoped_parts.append(f"CPC=({processed_terms_content})") 
+            # Iterate through the ordered non-FT scopes as derived from input
+            for scope_val in ordered_non_ft_scopes:
+                if scope_val == 'CPC' and term_operator == 'ANY' and len(content_terms) > 1:
+                    # Special handling for CPC with ANY operator and multiple CPC codes
+                    # Each content_term is treated as a separate CPC code
+                    for cpc_code_item in content_terms:
+                        scoped_parts.append(f"CPC=({cpc_code_item})")
+                elif scope_val == 'TI':
+                    scoped_parts.append(f"TI=({processed_terms_content})")
+                elif scope_val == 'AB':
+                    scoped_parts.append(f"AB=({processed_terms_content})")
+                elif scope_val == 'CL':
+                    scoped_parts.append(f"CL=({processed_terms_content})")
+                elif scope_val == 'CPC': # CPC not matching the ANY multi-term case (e.g., ALL operator, or ANY with single term)
+                    scoped_parts.append(f"CPC=({processed_terms_content})")
+                # Add other specific scope handling here if necessary
             
             if not scoped_parts: 
-                return processed_terms_content 
+                return processed_terms_content # Fallback
             
-            final_scoped_expr = " OR ".join(scoped_parts) if len(scoped_parts) > 1 else (scoped_parts[0] if scoped_parts else "")
+            final_scoped_expr = " OR ".join(scoped_parts)
             
-            if len(scoped_parts) > 1 and " OR " in final_scoped_expr: 
+            # Parenthesize if it's an OR expression resulting from multiple scoped_parts
+            if len(scoped_parts) > 1: 
                  return f"({final_scoped_expr})"
-            return final_scoped_expr
+            return final_scoped_expr # Single scoped part, no outer parentheses needed unless already in part
 
     elif condition_type == 'CLASSIFICATION':
         cpc_code = condition_data.get('cpc', '').strip()
         if cpc_code: return f"cpc:{cpc_code.replace('/', '')}"
         return ""
     return ""
-
 
 def generate_google_patents_query(
     structured_search_conditions: list = None,

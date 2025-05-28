@@ -20,7 +20,7 @@
         "expected_display_query": "(quantum OR qubit) CPC=(G06N10/00)",
         "expected_url": "https://patents.google.com/?q=%28quantum+OR+qubit%29&q=CPC%3D%28G06N10%2F00%29"
     },
-    {
+{
         "description": "TC3: Inventor, assignee, and patent office (no structured conditions)",
         "input": {
             "structured_search_conditions": null,
@@ -28,9 +28,11 @@
             "assignees": ["General Electric Company"],
             "patent_office": "US"
         },
-        "expected_display_query": "inventor:Edison, Thomas A assignee:General Electric Company country:US",
-        "expected_url": "https://patents.google.com/?inventor=Edison%2C+Thomas+A&assignee=General+Electric+Company&country=US"
-    },
+        "expected_display_query": "country:US inventor:Edison, Thomas A assignee:General Electric Company",
+      
+"expected_url": "https://patents.google.com/?country=US&inventor=Edison%2C+Thomas+A&assignee=General+Electric+Company"
+
+        },
     {
         "description": "TC4: Full date range, YYYYMMDD input, TEXT/FT/ALL condition",
         "input": {
@@ -69,9 +71,8 @@
             "patent_office": "WO", "language": "ENGLISH", "status": "GRANT",
             "patent_type": "DESIGN", "litigation": "HAS_RELATED_LITIGATION"
         },
-        "expected_display_query": "(AAA OR BBB) (CCC) (CPC=(H) OR CPC=(H04) OR CPC=(H04W)) inventor:DDD assignee:EEE after:priority:20000101 before:priority:20200101 country:WO language:ENGLISH status:GRANT type:DESIGN litigation:YES",
-        "expected_url": "https://patents.google.com/?q=%28AAA+OR+BBB%29&q=CCC&q=%28CPC%3D%28H%29+OR+CPC%3D%28H04%29+OR+CPC%3D%28H04W%29%29&inventor=DDD&assignee=EEE&after=priority%3A20000101&before=priority%3A20200101&country=WO&language=ENGLISH&status=GRANT&ptype=DESIGN&litigation=YES"
-    },
+        "expected_display_query": "(AAA OR BBB) (CCC) (CPC=(H) OR CPC=(H04) OR CPC=(H04W)) country:WO language:ENGLISH inventor:DDD assignee:EEE after:priority:20000101 before:priority:20200101 status:GRANT type:DESIGN litigation:YES",
+"expected_url": "https://patents.google.com/?q=%28AAA+OR+BBB%29&q=CCC&q=%28CPC%3D%28H%29+OR+CPC%3D%28H04%29+OR+CPC%3D%28H04W%29%29&country=WO&language=ENGLISH&inventor=DDD&assignee=EEE&after=priority%3A20000101&before=priority%3A20200101&status=GRANT&ptype=DESIGN&litigation=YES"    },
     {
         "description": "TC7: Multiple inventors, one assignee, litigation 'NO_KNOWN_LITIGATION', TEXT/FT/ALL",
         "input": {
