@@ -1,0 +1,169 @@
+[
+    {
+        "description": "TC1: Basic single search term (TEXT, FT, ALL)",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "simple", "selectedScopes": ["FT"], "termOperator": "ALL"}}
+            ]
+        },
+        "expected_display_query": "(simple)",
+        "expected_url": "https://patents.google.com/?q=simple"
+    },
+    {
+        "description": "TC2: Multiple structured conditions (TEXT/FT/ANY and TEXT/CPC_scope/ALL)",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "quantum qubit", "selectedScopes": ["FT"], "termOperator": "ANY"}},
+                {"id": "cond2", "type": "TEXT", "data": {"text": "G06N10/00", "selectedScopes": ["CPC"], "termOperator": "ALL"}}
+            ]
+        },
+        "expected_display_query": "(quantum OR qubit) CPC=(G06N10/00)",
+        "expected_url": "https://patents.google.com/?q=%28quantum+OR+qubit%29&q=CPC%3D%28G06N10%2F00%29"
+    },
+    {
+        "description": "TC3: Inventor, assignee, and patent office (no structured conditions)",
+        "input": {
+            "structured_search_conditions": null,
+            "inventors": ["Edison, Thomas A"],
+            "assignees": ["General Electric Company"],
+            "patent_office": "US"
+        },
+        "expected_display_query": "inventor:Edison, Thomas A assignee:General Electric Company country:US",
+        "expected_url": "https://patents.google.com/?inventor=Edison%2C+Thomas+A&assignee=General+Electric+Company&country=US"
+    },
+    {
+        "description": "TC4: Full date range, YYYYMMDD input, TEXT/FT/ALL condition",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "solar panel", "selectedScopes": ["FT"], "termOperator": "ALL"}}
+            ],
+            "after_date": "20190101", "after_date_type": "priority",
+            "before_date": "20211231", "before_date_type": "priority"
+        },
+        "expected_display_query": "(solar panel) after:priority:20190101 before:priority:20211231",
+        "expected_url": "https://patents.google.com/?q=solar+panel&after=priority%3A20190101&before=priority%3A20211231"
+    },
+    {
+        "description": "TC5: Language, status, patent_type, litigation 'YES', TEXT/FT/ALL condition",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "AI ethics", "selectedScopes": ["FT"], "termOperator": "ALL"}}
+            ],
+            "language": "JA", "status": "APPLICATION",
+            "patent_type": "UTILITY", "litigation": "YES"
+        },
+        "expected_display_query": "(AI ethics) language:JA status:APPLICATION type:UTILITY litigation:YES",
+        "expected_url": "https://patents.google.com/?q=AI+ethics&language=JA&status=APPLICATION&ptype=UTILITY&litigation=YES"
+    },
+    {
+        "description": "TC6: Screenshot-like complex query with structured conditions",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "AAA BBB", "selectedScopes": ["FT"], "termOperator": "ANY"}},
+                {"id": "cond2", "type": "TEXT", "data": {"text": "CCC", "selectedScopes": ["FT"], "termOperator": "ALL"}},
+                {"id": "cond3", "type": "TEXT", "data": {"text": "H H04 H04W", "selectedScopes": ["CPC"], "termOperator": "ANY"}}
+            ],
+            "inventors": ["DDD"], "assignees": ["EEE"],
+            "after_date": "2000-01-01", "after_date_type": "priority",
+            "before_date": "2020-01-01", "before_date_type": "priority",
+            "patent_office": "WO", "language": "ENGLISH", "status": "GRANT",
+            "patent_type": "DESIGN", "litigation": "HAS_RELATED_LITIGATION"
+        },
+        "expected_display_query": "(AAA OR BBB) (CCC) (CPC=(H) OR CPC=(H04) OR CPC=(H04W)) inventor:DDD assignee:EEE after:priority:20000101 before:priority:20200101 country:WO language:ENGLISH status:GRANT type:DESIGN litigation:YES",
+        "expected_url": "https://patents.google.com/?q=%28AAA+OR+BBB%29&q=CCC&q=%28CPC%3D%28H%29+OR+CPC%3D%28H04%29+OR+CPC%3D%28H04W%29%29&inventor=DDD&assignee=EEE&after=priority%3A20000101&before=priority%3A20200101&country=WO&language=ENGLISH&status=GRANT&ptype=DESIGN&litigation=YES"
+    },
+    {
+        "description": "TC7: Multiple inventors, one assignee, litigation 'NO_KNOWN_LITIGATION', TEXT/FT/ALL",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "drone system", "selectedScopes": ["FT"], "termOperator": "ALL"}}
+            ],
+            "inventors": ["Bezos, Jeff", "Wilke, Jeff"],
+            "assignees": ["Amazon Technologies, Inc."],
+            "litigation": "NO_KNOWN_LITIGATION"
+        },
+        "expected_display_query": "(drone system) inventor:Bezos, Jeff inventor:Wilke, Jeff assignee:Amazon Technologies, Inc. litigation:NO",
+        "expected_url": "https://patents.google.com/?q=drone+system&inventor=Bezos%2C+Jeff&inventor=Wilke%2C+Jeff&assignee=Amazon+Technologies%2C+Inc.&litigation=NO"
+    },
+    {
+        "description": "TC8: Different date types, TEXT/FT/ALL",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "advanced battery", "selectedScopes": ["FT"], "termOperator": "ALL"}}
+            ],
+            "after_date": "2022-03-15", "after_date_type": "filing",
+            "before_date": "2023-06-30", "before_date_type": "publication"
+        },
+        "expected_display_query": "(advanced battery) after:filing:20220315 before:publication:20230630",
+        "expected_url": "https://patents.google.com/?q=advanced+battery&after=filing%3A20220315&before=publication%3A20230630"
+    },
+    {
+        "description": "TC9: Only patent office and language, no structured conditions",
+        "input": {"structured_search_conditions": null, "patent_office": "EP", "language": "DE"},
+        "expected_display_query": "country:EP language:DE",
+        "expected_url": "https://patents.google.com/?country=EP&language=DE"
+    },
+    {
+        "description": "TC10: Empty input (all params None/empty list/null)",
+        "input": {"structured_search_conditions": [], "inventors": null},
+        "expected_display_query": "",
+        "expected_url": "https://patents.google.com/"
+    },
+    {
+        "description": "TC11: TEXT condition with TI scope, ALL operator",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "smart bulb", "selectedScopes": ["TI"], "termOperator": "ALL"}}
+            ]
+        },
+        "expected_display_query": "TI=(smart bulb)",
+        "expected_url": "https://patents.google.com/?q=TI%3D%28smart+bulb%29"
+    },
+    {
+        "description": "TC12: TEXT condition with multiple scopes (TI, AB), EXACT operator",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "TEXT", "data": {"text": "wearable sensor", "selectedScopes": ["TI", "AB"], "termOperator": "EXACT"}}
+            ]
+        },
+        "expected_display_query": "(TI=(\"wearable sensor\") OR AB=(\"wearable sensor\"))", 
+        "expected_url": "https://patents.google.com/?q=%28TI%3D%28%22wearable+sensor%22%29+OR+AB%3D%28%22wearable+sensor%22%29%29"
+    },
+    {
+        "description": "TC13: CLASSIFICATION tool type condition",
+        "input": {
+            "structured_search_conditions": [
+                {"id": "cond1", "type": "CLASSIFICATION", "data": {"cpc": "H01L/2100", "option": "EXACT"}}
+            ]
+        },
+        "expected_display_query": "cpc:H01L2100",
+        "expected_url": "https://patents.google.com/?q=cpc%3AH01L2100"
+    },
+    {
+        "description": "TC14: Dedicated CPC, Title, Document ID fields",
+        "input": {
+            "structured_search_conditions": null,
+            "dedicated_cpc": "G06F3/048",
+            "dedicated_title": "User Interface",
+            "dedicated_document_id": "US9000000B2"
+        },
+        "expected_display_query": "cpc:G06F3048 title:(\"User Interface\") \"US9000000B2\"",
+        "expected_url": "https://patents.google.com/?q=cpc%3AG06F3048&q=title%3A%28%22User+Interface%22%29&q=%22US9000000B2%22"
+    },
+    {
+        "description": "TC15: Invalid date format - Expect ValueError",
+        "input": {
+            "structured_search_conditions": [{"id": "cond1", "type": "TEXT", "data": {"text": "test", "selectedScopes": ["FT"], "termOperator": "ALL"}}],
+            "after_date": "2022/01/01", "after_date_type": "priority"
+        },
+        "expected_error": "ValueError" 
+    },
+    {
+        "description": "TC16: Invalid after_date_type - Expect ValueError",
+        "input": {
+            "structured_search_conditions": [{"id": "cond1", "type": "TEXT", "data": {"text": "test", "selectedScopes": ["FT"], "termOperator": "ALL"}}],
+            "after_date": "2022-01-01", "after_date_type": "invalid_type"
+        },
+        "expected_error": "ValueError"
+    }
+]

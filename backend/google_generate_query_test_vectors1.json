@@ -1,0 +1,343 @@
+[
+    {
+        "description": "TC11: Title search with EXACT phrase",
+        "input": {"search_terms": ["TI=(\"quantum entanglement device\")"]},
+        "expected_display_query": "TI=(\"quantum entanglement device\")",
+        "expected_url": "https://patents.google.com/?q=TI%3D%28%22quantum+entanglement+device%22%29"
+    },
+    {
+        "description": "TC12: Abstract search with ANY operator (OR)",
+        "input": {"search_terms": ["AB=(solar OR photovoltaic OR sun)"]},
+        "expected_display_query": "AB=(solar OR photovoltaic OR sun)",
+        "expected_url": "https://patents.google.com/?q=AB%3D%28solar+OR+photovoltaic+OR+sun%29"
+    },
+    {
+        "description": "TC13: Claims search with ALL operator (AND) and NOT",
+        "input": {"search_terms": ["CL=(method AND algorithm NOT heuristic)"]},
+        "expected_display_query": "CL=(method AND algorithm NOT heuristic)",
+        "expected_url": "https://patents.google.com/?q=CL%3D%28method+AND+algorithm+NOT+heuristic%29"
+    },
+    {
+        "description": "TC14: CPC search (multiple CPCs joined by OR)",
+        "input": {"search_terms": ["CPC=(H01L21/00) OR CPC=(H01L29/78)"]},
+        "expected_display_query": "CPC=(H01L21/00) OR CPC=(H01L29/78)",
+        "expected_url": "https://patents.google.com/?q=CPC%3D%28H01L21%2F00%29+OR+CPC%3D%28H01L29%2F78%29"
+    },
+    {
+        "description": "TC15: Publication Number search",
+        "input": {"search_terms": ["US9876543B2"]},
+        "expected_display_query": "(US9876543B2)",
+        "expected_url": "https://patents.google.com/?q=US9876543B2"
+    },
+    {
+        "description": "TC16: Application Number search (US format)",
+        "input": {"search_terms": ["US15/123456"]},
+        "expected_display_query": "(US15/123456)",
+        "expected_url": "https://patents.google.com/?q=US15%2F123456"
+    },
+    {
+        "description": "TC17: Chemistry search (SMILES string)",
+        "input": {"search_terms": ["c1ccccc1C(=O)O"]},
+        "expected_display_query": "(c1ccccc1C(=O)O)",
+        "expected_url": "https://patents.google.com/?q=c1ccccc1C%28%3DO%29O"
+    },
+    {
+        "description": "TC18: Chemistry search (InChIKey)",
+        "input": {"search_terms": ["InChIKey=BSYNRYMUTXBXSQ-UHFFFAOYSA-N"]},
+        "expected_display_query": "InChIKey=BSYNRYMUTXBXSQ-UHFFFAOYSA-N",
+        "expected_url": "https://patents.google.com/?q=InChIKey%3DBSYNRYMUTXBXSQ-UHFFFAOYSA-N"
+    },
+    {
+        "description": "TC19: General term with '-' operator for NOT",
+        "input": {"search_terms": ["battery -lithium"]},
+        "expected_display_query": "(battery -lithium)",
+        "expected_url": "https://patents.google.com/?q=battery+-lithium"
+    },
+    {
+        "description": "TC20: Combination of general term and inventor, with filing date",
+        "input": {
+            "search_terms": ["machine learning"],
+            "inventors": ["Hinton, Geoffrey"],
+            "after_date": "2010-01-01", "after_date_type": "filing"
+        },
+        "expected_display_query": "(machine learning) inventor:Hinton, Geoffrey after:filing:20100101",
+        "expected_url": "https://patents.google.com/?q=machine+learning&inventor=Hinton%2C+Geoffrey&after=filing%3A20100101"
+    },
+    {
+        "description": "TC21: Multiple assignees and publication date (before)",
+        "input": {
+            "assignees": ["Alphabet Inc.", "Google LLC"],
+            "before_date": "2023-12-31", "before_date_type": "publication"
+        },
+        "expected_display_query": "assignee:Alphabet Inc. assignee:Google LLC before:publication:20231231",
+        "expected_url": "https://patents.google.com/?assignee=Alphabet+Inc.&assignee=Google+LLC&before=publication%3A20231231"
+    },
+    {
+        "description": "TC22: Korean patent office and language",
+        "input": {"search_terms": ["semiconductor"], "patent_office": "KR", "language": "KO"},
+        "expected_display_query": "(semiconductor) country:KR language:KO",
+        "expected_url": "https://patents.google.com/?q=semiconductor&country=KR&language=KO"
+    },
+    {
+        "description": "TC23: Status 'PENDING' and patent_type 'PROVISIONAL'",
+        "input": {"search_terms": ["biotech discovery"], "status": "PENDING", "patent_type": "PROVISIONAL"},
+        "expected_display_query": "(biotech discovery) status:PENDING type:PROVISIONAL",
+        "expected_url": "https://patents.google.com/?q=biotech+discovery&status=PENDING&ptype=PROVISIONAL"
+    },
+    {
+        "description": "TC24: Litigation 'NO KNOWN LITIGATION'",
+        "input": {"search_terms": ["renewable energy"], "litigation": "NO KNOWN LITIGATION"},
+        "expected_display_query": "(renewable energy) litigation:NO",
+        "expected_url": "https://patents.google.com/?q=renewable+energy&litigation=NO"
+    },
+    {
+        "description": "TC25: Exact phrase in Title AND specific CPC",
+        "input": {"search_terms": ["TI=(\"self-driving car\") AND CPC=(B60W30/00)"]},
+        "expected_display_query": "TI=(\"self-driving car\") AND CPC=(B60W30/00)",
+        "expected_url": "https://patents.google.com/?q=TI%3D%28%22self-driving+car%22%29+AND+CPC%3D%28B60W30%2F00%29"
+    },
+    {
+        "description": "TC26: Multiple 'q' boxes: general, abstract, publication number",
+        "input": {"search_terms": ["algorithm", "AB=(optimization)", "WO2022010101A1"]},
+        "expected_display_query": "(algorithm) AB=(optimization) (WO2022010101A1)",
+        "expected_url": "https://patents.google.com/?q=algorithm&q=AB%3D%28optimization%29&q=WO2022010101A1"
+    },
+    {
+        "description": "TC27: Inventor with non-ASCII characters (needs URL encoding)",
+        "input": {"inventors": ["Schrödinger, Erwin"]},
+        "expected_display_query": "inventor:Schrödinger, Erwin",
+        "expected_url": "https://patents.google.com/?inventor=Schr%C3%B6dinger%2C+Erwin"
+    },
+    {
+        "description": "TC28: Assignee with special character '&'",
+        "input": {"assignees": ["AT&T Intellectual Property"]},
+        "expected_display_query": "assignee:AT&T Intellectual Property",
+        "expected_url": "https://patents.google.com/?assignee=AT%26T+Intellectual+Property"
+    },
+    {
+        "description": "TC29: Only 'after_date' of type 'publication'",
+        "input": {"after_date": "20230101", "after_date_type": "publication"},
+        "expected_display_query": "after:publication:20230101",
+        "expected_url": "https://patents.google.com/?after=publication%3A20230101"
+    },
+    {
+        "description": "TC30: Date range with YYYY-MM-DD format for filing",
+        "input": {
+            "after_date": "2020-03-01", "after_date_type": "filing",
+            "before_date": "2020-03-31", "before_date_type": "filing"
+        },
+        "expected_display_query": "after:filing:20200301 before:filing:20200331",
+        "expected_url": "https://patents.google.com/?after=filing%3A20200301&before=filing%3A20200331"
+    },
+    {
+        "description": "TC31: Patent Type 'PLANT'",
+        "input": {"search_terms": ["rose"], "patent_type": "PLANT", "patent_office": "US"},
+        "expected_display_query": "(rose) type:PLANT country:US",
+        "expected_url": "https://patents.google.com/?q=rose&ptype=PLANT&country=US"
+    },
+    {
+        "description": "TC32: Patent Type 'REISSUE' and Status 'GRANT'",
+        "input": {"search_terms": ["RE00000"], "patent_type": "REISSUE", "status": "GRANT"},
+        "expected_display_query": "(RE00000) type:REISSUE status:GRANT",
+        "expected_url": "https://patents.google.com/?q=RE00000&ptype=REISSUE&status=GRANT"
+    },
+    {
+        "description": "TC33: Search term with parentheses that are part of the term, not operators",
+        "input": {"search_terms": ["system (computing)"]},
+        "expected_display_query": "(system (computing))",
+        "expected_url": "https://patents.google.com/?q=system+%28computing%29"
+    },
+    {
+        "description": "TC34: Complex CPC with subclass and group (e.g. Y02E60/12/CX)",
+        "input": {"search_terms": ["CPC=(Y02E60/12/CX)"]},
+        "expected_display_query": "CPC=(Y02E60/12/CX)",
+        "expected_url": "https://patents.google.com/?q=CPC%3D%28Y02E60%2F12%2FCX%29"
+    },
+    {
+        "description": "TC35: Search for an EP application number",
+        "input": {"search_terms": ["EP19001000A"]},
+        "expected_display_query": "(EP19001000A)",
+        "expected_url": "https://patents.google.com/?q=EP19001000A"
+    },
+    {
+        "description": "TC36: General full document search with Japanese language filter",
+        "input": {"search_terms": ["ロボットアーム"], "language": "JA"},
+        "expected_display_query": "(ロボットアーム) language:JA",
+        "expected_url": "https://patents.google.com/?q=%E3%83%AD%E3%83%9C%E3%83%83%E3%83%88%E3%82%A2%E3%83%BC%E3%83%A0&language=JA"
+    },
+    {
+        "description": "TC37: Title search with mixed case AND/OR operators",
+        "input": {"search_terms": ["TI=(Alpha anD Beta oR Gamma)"]},
+        "expected_display_query": "TI=(Alpha anD Beta oR Gamma)",
+        "expected_url": "https://patents.google.com/?q=TI%3D%28Alpha+anD+Beta+oR+Gamma%29"
+    },
+    {
+        "description": "TC38: Abstract search for an exact phrase containing 'NOT'",
+        "input": {"search_terms": ["AB=(\"learning algorithm NOT deep\")"]},
+        "expected_display_query": "AB=(\"learning algorithm NOT deep\")",
+        "expected_url": "https://patents.google.com/?q=AB%3D%28%22learning+algorithm+NOT+deep%22%29"
+    },
+    {
+        "description": "TC39: Claims search with numbers and hyphens",
+        "input": {"search_terms": ["CL=(step-1 OR task-A)"]},
+        "expected_display_query": "CL=(step-1 OR task-A)",
+        "expected_url": "https://patents.google.com/?q=CL%3D%28step-1+OR+task-A%29"
+    },
+    {
+        "description": "TC40: CPC, Inventor, and Publication Date range",
+        "input": {
+            "search_terms": ["CPC=(A61K31/00)"],
+            "inventors": ["Curie, Marie"],
+            "after_date": "19000101", "after_date_type": "publication",
+            "before_date": "19301231", "before_date_type": "publication"
+        },
+        "expected_display_query": "CPC=(A61K31/00) inventor:Curie, Marie after:publication:19000101 before:publication:19301231",
+        "expected_url": "https://patents.google.com/?q=CPC%3D%28A61K31%2F00%29&inventor=Curie%2C+Marie&after=publication%3A19000101&before=publication%3A19301231"
+    },
+    {
+        "description": "TC41: Search term that is just numbers",
+        "input": {"search_terms": ["1234567890"]},
+        "expected_display_query": "(1234567890)",
+        "expected_url": "https://patents.google.com/?q=1234567890"
+    },
+    {
+        "description": "TC42: Multiple CPCs using explicit AND",
+        "input": {"search_terms": ["CPC=(G01N33/50) AND CPC=(C12Q1/68)"]},
+        "expected_display_query": "CPC=(G01N33/50) AND CPC=(C12Q1/68)",
+        "expected_url": "https://patents.google.com/?q=CPC%3D%28G01N33%2F50%29+AND+CPC%3D%28C12Q1%2F68%29"
+    },
+    {
+        "description": "TC43: International Application Number (PCT)",
+        "input": {"search_terms": ["PCT/US2022/012345"]},
+        "expected_display_query": "(PCT/US2022/012345)",
+        "expected_url": "https://patents.google.com/?q=PCT%2FUS2022%2F012345"
+    },
+    {
+        "description": "TC44: General search term including common words like 'patent'",
+        "input": {"search_terms": ["new patent application"]},
+        "expected_display_query": "(new patent application)",
+        "expected_url": "https://patents.google.com/?q=new+patent+application"
+    },
+    {
+        "description": "TC45: Title search with 'NOT' and then an 'OR' group",
+        "input": {"search_terms": ["TI=(engine NOT (electric OR hybrid))"]},
+        "expected_display_query": "TI=(engine NOT (electric OR hybrid))",
+        "expected_url": "https://patents.google.com/?q=TI%3D%28engine+NOT+%28electric+OR+hybrid%29%29"
+    },
+    {
+        "description": "TC46: Empty search_terms list, but other fields present",
+        "input": {
+            "search_terms": [],
+            "inventors": ["Tesla, Nikola"],
+            "patent_office": "CA"
+        },
+        "expected_display_query": "inventor:Tesla, Nikola country:CA",
+        "expected_url": "https://patents.google.com/?inventor=Tesla%2C+Nikola&country=CA"
+    },
+    {
+        "description": "TC47: Search term is a very long exact phrase",
+        "input": {"search_terms": ["\"method for manufacturing a semiconductor device having a plurality of layers and performing an etching process\""]},
+        "expected_display_query": "(\"method for manufacturing a semiconductor device having a plurality of layers and performing an etching process\")",
+        "expected_url": "https://patents.google.com/?q=%22method+for+manufacturing+a+semiconductor+device+having+a+plurality+of+layers+and+performing+an+etching+process%22"
+    },
+    {
+        "description": "TC48: Only before_date (filing) and patent_type 'DESIGN'",
+        "input": {
+            "before_date": "2005-06-15", "before_date_type": "filing",
+            "patent_type": "DESIGN"
+        },
+        "expected_display_query": "before:filing:20050615 type:DESIGN",
+        "expected_url": "https://patents.google.com/?before=filing%3A20050615&ptype=DESIGN"
+    },
+    {
+        "description": "TC49: All fields populated with simple values (Chinese)",
+        "input": {
+            "search_terms": ["用户界面", "CL=(显示方法)"],
+            "inventors": ["张三"],
+            "assignees": ["华为技术有限公司"],
+            "after_date": "2021-01-01", "after_date_type": "priority",
+            "before_date": "2022-12-31", "before_date_type": "priority",
+            "patent_office": "CN",
+            "language": "ZH",
+            "status": "GRANT",
+            "patent_type": "UTILITY",
+            "litigation": "NO"
+        },
+        "expected_display_query": "(用户界面) CL=(显示方法) inventor:张三 assignee:华为技术有限公司 after:priority:20210101 before:priority:20221231 country:CN language:ZH status:GRANT type:UTILITY litigation:NO",
+        "expected_url": "https://patents.google.com/?q=%E7%94%A8%E6%88%B7%E7%95%8C%E9%9D%A2&q=CL%3D%28%E6%98%BE%E7%A4%BA%E6%96%B9%E6%B3%95%29&inventor=%E5%BC%A0%E4%B8%89&assignee=%E5%8D%8E%E4%B8%BA%E6%8A%80%E6%9C%AF%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8&after=priority%3A20210101&before=priority%3A20221231&country=CN&language=ZH&status=GRANT&ptype=UTILITY&litigation=NO"
+    },
+    {
+        "description": "TC50: Search terms with slashes and other symbols not typically encoded unless problematic",
+        "input": {"search_terms": ["A/B_test-result*final"]},
+        "expected_display_query": "(A/B_test-result*final)",
+        "expected_url": "https://patents.google.com/?q=A%2FB_test-result*final"
+    },
+    {
+        "description": "TC51: Title search with only special characters (should be URL encoded)",
+        "input": {"search_terms": ["TI=($%^&*())"]},
+        "expected_display_query": "TI=($%^&*())",
+        "expected_url": "https://patents.google.com/?q=TI%3D%28%24%25%5E%26*%28%29%29"
+    },
+    {
+        "description": "TC52: Abstract search with mixed operators and explicit grouping",
+        "input": {"search_terms": ["AB=((cat OR dog) AND (food NOT treat))"]},
+        "expected_display_query": "AB=((cat OR dog) AND (food NOT treat))",
+        "expected_url": "https://patents.google.com/?q=AB%3D%28%28cat+OR+dog%29+AND+%28food+NOT+treat%29%29"
+    },
+    {
+        "description": "TC53: Claims search for a very short term",
+        "input": {"search_terms": ["CL=(a)"]},
+        "expected_display_query": "CL=(a)",
+        "expected_url": "https://patents.google.com/?q=CL%3D%28a%29"
+    },
+    {
+        "description": "TC54: CPC search with a date filter (filing)",
+        "input": {
+            "search_terms": ["CPC=(Y10S)"],
+            "after_date": "20150701", "after_date_type": "filing"
+        },
+        "expected_display_query": "CPC=(Y10S) after:filing:20150701",
+        "expected_url": "https://patents.google.com/?q=CPC%3D%28Y10S%29&after=filing%3A20150701"
+    },
+    {
+        "description": "TC55: Publication Number search with an assignee",
+        "input": {"search_terms": ["EP1234567B1"], "assignees": ["Siemens AG"]},
+        "expected_display_query": "(EP1234567B1) assignee:Siemens AG",
+        "expected_url": "https://patents.google.com/?q=EP1234567B1&assignee=Siemens+AG"
+    },
+    {
+        "description": "TC56: US Application Number (new format) and litigation 'YES'",
+        "input": {"search_terms": ["16/123,456"], "litigation": "YES"},
+        "expected_display_query": "(16/123,456) litigation:YES",
+        "expected_url": "https://patents.google.com/?q=16%2F123%2C456&litigation=YES"
+    },
+    {
+        "description": "TC57: Chemistry search (CAS Number style, treated as general term)",
+        "input": {"search_terms": ["CAS:50-00-0"]},
+        "expected_display_query": "CAS:50-00-0",
+        "expected_url": "https://patents.google.com/?q=CAS%3A50-00-0"
+    },
+    {
+        "description": "TC58: Search term with leading/trailing spaces (should be stripped by generator)",
+        "input": {"search_terms": ["  spaced term  "]},
+        "expected_display_query": "(spaced term)",
+        "expected_url": "https://patents.google.com/?q=spaced+term"
+    },
+    {
+        "description": "TC59: Multiple 'q' boxes, one empty, one with data",
+        "input": {"search_terms": ["", "valid term"]},
+        "expected_display_query": "(valid term)",
+        "expected_url": "https://patents.google.com/?q=valid+term"
+    },
+    {
+        "description": "TC60: All date types used with different dates and an inventor",
+        "input": {
+            "inventors": ["Feynman, Richard"],
+            "after_date": "19500101", "after_date_type": "priority",
+            "before_date": "19601231", "before_date_type": "filing",
+            "search_terms": ["after:publication:19550615"]
+        },
+        "expected_display_query": "after:publication:19550615 inventor:Feynman, Richard after:priority:19500101 before:filing:19601231",
+        "expected_url": "https://patents.google.com/?q=after%3Apublication%3A19550615&inventor=Feynman%2C+Richard&after=priority%3A19500101&before=filing%3A19601231"
+    }
+]

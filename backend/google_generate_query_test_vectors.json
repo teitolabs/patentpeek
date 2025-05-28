@@ -1,0 +1,89 @@
+[
+    {
+        "description": "TC1: Basic single search term",
+        "input": {"search_terms": ["simple"]},
+        "expected_display_query": "(simple)",
+        "expected_url": "https://patents.google.com/?q=simple"
+    },
+    {
+        "description": "TC2: Multiple search terms including one with OR and one CPC",
+        "input": {"search_terms": ["quantum OR qubit", "CPC=(G06N10/00)"]},
+        "expected_display_query": "(quantum OR qubit) CPC=(G06N10/00)",
+        "expected_url": "https://patents.google.com/?q=quantum+OR+qubit&q=CPC%3D%28G06N10%2F00%29"
+    },
+    {
+        "description": "TC3: Inventor, assignee, and patent office",
+        "input": {
+            "inventors": ["Edison, Thomas A"],
+            "assignees": ["General Electric Company"],
+            "patent_office": "US"
+        },
+        "expected_display_query": "inventor:Edison, Thomas A assignee:General Electric Company country:US",
+        "expected_url": "https://patents.google.com/?inventor=Edison%2C+Thomas+A&assignee=General+Electric+Company&country=US"
+    },
+    {
+        "description": "TC4: Full date range (after and before priority), YYYYMMDD input",
+        "input": {
+            "search_terms": ["solar panel"],
+            "after_date": "20190101", "after_date_type": "priority",
+            "before_date": "20211231", "before_date_type": "priority"
+        },
+        "expected_display_query": "(solar panel) after:priority:20190101 before:priority:20211231",
+        "expected_url": "https://patents.google.com/?q=solar+panel&after=priority%3A20190101&before=priority%3A20211231"
+    },
+    {
+        "description": "TC5: Language, status, patent_type, litigation 'YES'",
+        "input": {
+            "search_terms": ["AI ethics"], "language": "JA", "status": "APPLICATION",
+            "patent_type": "UTILITY", "litigation": "YES"
+        },
+        "expected_display_query": "(AI ethics) language:JA status:APPLICATION type:UTILITY litigation:YES",
+        "expected_url": "https://patents.google.com/?q=AI+ethics&language=JA&status=APPLICATION&ptype=UTILITY&litigation=YES"
+    },
+    {
+        "description": "TC6: Screenshot-like complex query",
+        "input": {
+            "search_terms": ["AAA OR BBB", "CCC", "CPC=(H) OR CPC=(H04) OR CPC=(H04W)"],
+            "inventors": ["DDD"], "assignees": ["EEE"],
+            "after_date": "2000-01-01", "after_date_type": "priority",
+            "before_date": "2020-01-01", "before_date_type": "priority",
+            "patent_office": "WO", "language": "ENGLISH", "status": "GRANT",
+            "patent_type": "DESIGN", "litigation": "HAS_RELATED_LITIGATION"
+        },
+        "expected_display_query": "(AAA OR BBB) (CCC) CPC=(H) OR CPC=(H04) OR CPC=(H04W) inventor:DDD assignee:EEE after:priority:20000101 before:priority:20200101 country:WO language:ENGLISH status:GRANT type:DESIGN litigation:YES",
+        "expected_url": "https://patents.google.com/?q=AAA+OR+BBB&q=CCC&q=CPC%3D%28H%29+OR+CPC%3D%28H04%29+OR+CPC%3D%28H04W%29&inventor=DDD&assignee=EEE&after=priority%3A20000101&before=priority%3A20200101&country=WO&language=ENGLISH&status=GRANT&ptype=DESIGN&litigation=YES"
+    },
+    {
+        "description": "TC7: Multiple inventors, one assignee, litigation 'NO_KNOWN_LITIGATION'",
+        "input": {
+            "search_terms": ["drone system"],
+            "inventors": ["Bezos, Jeff", "Wilke, Jeff"],
+            "assignees": ["Amazon Technologies, Inc."],
+            "litigation": "NO_KNOWN_LITIGATION"
+        },
+        "expected_display_query": "(drone system) inventor:Bezos, Jeff inventor:Wilke, Jeff assignee:Amazon Technologies, Inc. litigation:NO",
+        "expected_url": "https://patents.google.com/?q=drone+system&inventor=Bezos%2C+Jeff&inventor=Wilke%2C+Jeff&assignee=Amazon+Technologies%2C+Inc.&litigation=NO"
+    },
+    {
+        "description": "TC8: Different date types (filing and publication) with YYYY-MM-DD input",
+        "input": {
+            "search_terms": ["advanced battery"],
+            "after_date": "2022-03-15", "after_date_type": "filing",
+            "before_date": "2023-06-30", "before_date_type": "publication"
+        },
+        "expected_display_query": "(advanced battery) after:filing:20220315 before:publication:20230630",
+        "expected_url": "https://patents.google.com/?q=advanced+battery&after=filing%3A20220315&before=publication%3A20230630"
+    },
+    {
+        "description": "TC9: Only patent office and language, no search terms",
+        "input": {"patent_office": "EP", "language": "DE"},
+        "expected_display_query": "country:EP language:DE",
+        "expected_url": "https://patents.google.com/?country=EP&language=DE"
+    },
+    {
+        "description": "TC10: Empty input (all params None/empty list)",
+        "input": {"search_terms": [], "inventors": null},
+        "expected_display_query": "",
+        "expected_url": "https://patents.google.com/"
+    }
+]
