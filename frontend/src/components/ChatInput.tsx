@@ -1,15 +1,18 @@
+// --- START OF FILE ChatInput.tsx ---
 import React, { useState, useEffect, useRef } from 'react';
 import { PatentFormat } from '../types';
-import { 
-    Building2, XCircle, CalendarDays, ChevronDown, Users, Briefcase, Filter, 
-    Settings2, Type as TypeIcon, Wand2, Link as LinkIcon, ShieldQuestion, Globe, Check, Languages // Added Check, Languages, renamed Type to TypeIcon
-} from 'lucide-react';
+import {
+    Building2, XCircle, CalendarDays, ChevronDown, Users, Briefcase, Filter,
+    Settings2, Type as TypeIcon, Wand2, Link as LinkIcon, ShieldQuestion, Globe, Check, Languages,
+    FlaskConical, Ruler, Hash, HelpCircle, SlidersHorizontal, Globe2, AlignLeft, ListOrdered
+} from 'lucide-react'; // Added ListOrdered
 import SearchToolModal, { ModalToolData } from './SearchToolModal';
 
 // --- Type Definitions ---
 export type DateType = 'priority' | 'filing' | 'publication';
 export type PatentOffice =
   | 'US' | 'EP' | 'WO' | 'JP' | 'CN' | 'KR' | 'DE' | 'GB' | 'FR' | 'CA'
+  // ... (rest of patent offices)
   | 'AE' | 'AG' | 'AL' | 'AM' | 'AO' | 'AP' | 'AR' | 'AT' | 'AU' | 'AW'
   | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BJ' | 'BN'
   | 'BO' | 'BR' | 'BW' | 'BX' | 'BY' | 'BZ' | 'CF' | 'CG' | 'CH' | 'CI'
@@ -28,11 +31,12 @@ export type PatentOffice =
   | 'TT' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UY' | 'UZ' | 'VC' | 'VE' | 'VN'
   | 'YU' | 'ZA' | 'ZM' | 'ZW' | 'OTHER' | '';
 
-// Expanded Language type
+
 export type Language =
   | 'ENGLISH' | 'GERMAN' | 'CHINESE' | 'FRENCH' | 'SPANISH' | 'ARABIC'
+  // ... (rest of languages)
   | 'JAPANESE' | 'KOREAN' | 'PORTUGUESE' | 'RUSSIAN' | 'ITALIAN' | 'DUTCH'
-  | 'SWEDISH' | 'FINNISH' | 'NORWEGIAN' | 'DANISH' | ''; // Empty for 'Any'
+  | 'SWEDISH' | 'FINNISH' | 'NORWEGIAN' | 'DANISH' | '';
 
 export type PatentStatus = 'GRANT' | 'APPLICATION' | '';
 export type PatentType = 'PATENT' | 'DESIGN' | 'PLANT' | 'REISSUE' | 'SIR' | 'UTILITY' | 'PROVISIONAL' | 'DEFENSIVE_PUBLICATION' | 'STATUTORY_INVENTION_REGISTRATION' | 'OTHER' | '';
@@ -41,15 +45,36 @@ export type TermOperator = 'ALL' | 'EXACT' | 'ANY' | 'NONE';
 export type SearchToolType = 'TEXT' | 'CLASSIFICATION' | 'CHEMISTRY' | 'MEASURE' | 'NUMBERS';
 export type LitigationStatus = 'YES' | 'NO' | '';
 
-// ... (BaseSearchCondition, InternalTextSearchData, etc. remain the same) ...
 export interface BaseSearchCondition { id: string; type: SearchToolType; }
 export interface InternalTextSearchData { text: string; selectedScopes: Set<QueryScope>; termOperator: TermOperator; }
 export interface TextSearchCondition extends BaseSearchCondition { type: 'TEXT'; data: InternalTextSearchData; }
 export interface ClassificationSearchData { cpc: string; option: 'CHILDREN' | 'EXACT'; }
 export interface ClassificationSearchCondition extends BaseSearchCondition { type: 'CLASSIFICATION'; data: ClassificationSearchData; }
-interface GenericSearchConditionData { [key: string]: any; }
-interface GenericSearchCondition extends BaseSearchCondition { type: Exclude<SearchToolType, 'TEXT' | 'CLASSIFICATION'>; data: GenericSearchConditionData; }
-export type SearchCondition = TextSearchCondition | ClassificationSearchCondition | GenericSearchCondition;
+
+export type ChemistryOperator = 'EXACT' | 'SIMILAR' | 'SUBSTRUCTURE' | 'SMARTS';
+export type ChemistryUiOperatorLabel = 'Exact' | 'Exact Batch' | 'Similar' | 'Substructure' | 'Substructure (SMARTS)'; // For UI state
+export type ChemistryDocScope = 'FULL' | 'CLAIMS_ONLY';
+export interface ChemistrySearchData { term: string; operator: ChemistryOperator; uiOperatorLabel: ChemistryUiOperatorLabel; docScope: ChemistryDocScope; }
+export interface ChemistrySearchCondition extends BaseSearchCondition { type: 'CHEMISTRY'; data: ChemistrySearchData; }
+
+export interface MeasureSearchData { measurements: string; units_concepts: string; }
+export interface MeasureSearchCondition extends BaseSearchCondition { type: 'MEASURE'; data: MeasureSearchData; }
+
+export type DocumentNumberType = 'APPLICATION' | 'PUBLICATION' | 'EITHER';
+export interface NumbersSearchData {
+  doc_ids_text: string;
+  number_type: DocumentNumberType;
+  country_restriction: string;
+  preferred_countries_order: string; // New field
+}
+export interface NumbersSearchCondition extends BaseSearchCondition { type: 'NUMBERS'; data: NumbersSearchData; }
+
+export type SearchCondition =
+  | TextSearchCondition
+  | ClassificationSearchCondition
+  | ChemistrySearchCondition
+  | MeasureSearchCondition
+  | NumbersSearchCondition;
 
 export interface BackendSearchConditionPayload {
   id: string;
@@ -57,28 +82,26 @@ export interface BackendSearchConditionPayload {
   data: any;
 }
 
-
-export interface GoogleLikeSearchFields {
+export interface GoogleLikeSearchFields { /* ... */ 
   dateFrom: string; dateTo: string; dateType: DateType;
   inventors: Array<{ id: string; value: string }>;
   assignees: Array<{ id: string; value: string }>;
-  patentOffices: PatentOffice[]; 
-  languages: Language[]; // CHANGED
+  patentOffices: PatentOffice[];
+  languages: Language[];
   status: PatentStatus; patentType: PatentType;
   litigation: LitigationStatus;
-  cpc?: string; 
+  cpc?: string;
   specificTitle?: string; documentId?: string;
 }
 export interface ChatInputProps { value: string; activeFormat: PatentFormat; onTabChange: (newFormat: PatentFormat) => void; onMainInputChange: (text: string) => void; }
 
-// --- Options Arrays ---
+// ... (Options Arrays remain the same) ...
 const dateTypeOptions: Array<{value: DateType; label: string}> = [
     {value: 'publication', label: 'Publication'}, {value: 'priority', label: 'Priority'}, {value: 'filing', label: 'Filing'},
 ];
 
-// Patent Office options - using code as label, maintaining specified order
 const patentOfficeOptions: Array<{value: PatentOffice; label: string}> = [
-    {value: 'WO', label: 'WO'}, {value: 'US', label: 'US'}, {value: 'EP', label: 'EP'}, 
+    {value: 'WO', label: 'WO'}, {value: 'US', label: 'US'}, {value: 'EP', label: 'EP'},
     {value: 'JP', label: 'JP'}, {value: 'KR', label: 'KR'}, {value: 'CN', label: 'CN'},
     {value: 'AE', label: 'AE'}, {value: 'AG', label: 'AG'}, {value: 'AL', label: 'AL'},
     {value: 'AM', label: 'AM'}, {value: 'AO', label: 'AO'}, {value: 'AP', label: 'AP'},
@@ -88,18 +111,18 @@ const patentOfficeOptions: Array<{value: PatentOffice; label: string}> = [
     {value: 'BF', label: 'BF'}, {value: 'BG', label: 'BG'}, {value: 'BH', label: 'BH'},
     {value: 'BJ', label: 'BJ'}, {value: 'BN', label: 'BN'}, {value: 'BO', label: 'BO'},
     {value: 'BR', label: 'BR'}, {value: 'BW', label: 'BW'}, {value: 'BX', label: 'BX'},
-    {value: 'BY', label: 'BY'}, {value: 'BZ', label: 'BZ'}, {value: 'CA', label: 'CA'}, // Moved CA to maintain original block
+    {value: 'BY', label: 'BY'}, {value: 'BZ', label: 'BZ'}, {value: 'CA', label: 'CA'},
     {value: 'CF', label: 'CF'}, {value: 'CG', label: 'CG'}, {value: 'CH', label: 'CH'},
     {value: 'CI', label: 'CI'}, {value: 'CL', label: 'CL'}, {value: 'CM', label: 'CM'},
     {value: 'CO', label: 'CO'}, {value: 'CR', label: 'CR'}, {value: 'CS', label: 'CS'},
     {value: 'CU', label: 'CU'}, {value: 'CY', label: 'CY'}, {value: 'CZ', label: 'CZ'},
-    {value: 'DD', label: 'DD'}, {value: 'DE', label: 'DE'}, // Moved DE
+    {value: 'DD', label: 'DD'}, {value: 'DE', label: 'DE'},
     {value: 'DJ', label: 'DJ'}, {value: 'DK', label: 'DK'}, {value: 'DM', label: 'DM'},
     {value: 'DO', label: 'DO'}, {value: 'DZ', label: 'DZ'}, {value: 'EA', label: 'EA'},
     {value: 'EC', label: 'EC'}, {value: 'EE', label: 'EE'}, {value: 'EG', label: 'EG'},
     {value: 'EM', label: 'EM'}, {value: 'ES', label: 'ES'}, {value: 'FI', label: 'FI'},
-    {value: 'FR', label: 'FR'}, // Moved FR
-    {value: 'GA', label: 'GA'}, {value: 'GB', label: 'GB'}, // Moved GB
+    {value: 'FR', label: 'FR'},
+    {value: 'GA', label: 'GA'}, {value: 'GB', label: 'GB'},
     {value: 'GC', label: 'GC'}, {value: 'GD', label: 'GD'}, {value: 'GE', label: 'GE'},
     {value: 'GH', label: 'GH'}, {value: 'GM', label: 'GM'}, {value: 'GN', label: 'GN'},
     {value: 'GQ', label: 'GQ'}, {value: 'GR', label: 'GR'}, {value: 'GT', label: 'GT'},
@@ -138,11 +161,9 @@ const patentOfficeOptions: Array<{value: PatentOffice; label: string}> = [
     {value: 'VC', label: 'VC'}, {value: 'VE', label: 'VE'}, {value: 'VN', label: 'VN'},
     {value: 'YU', label: 'YU'}, {value: 'ZA', label: 'ZA'}, {value: 'ZM', label: 'ZM'},
     {value: 'ZW', label: 'ZW'}
-    // 'OTHER' is not a selectable code, it implies user types it in a query directly
 ];
 
 const languageOptions: Array<{value: Language; label: string}> = [
-    // {value: '', label: 'Any Language'}, // "Any" is an empty array
     {value: 'ENGLISH', label: 'English'}, {value: 'GERMAN', label: 'German'},
     {value: 'CHINESE', label: 'Chinese'}, {value: 'FRENCH', label: 'French'},
     {value: 'SPANISH', label: 'Spanish'}, {value: 'ARABIC', label: 'Arabic'},
@@ -167,21 +188,21 @@ const litigationStatusOptions: Array<{value: LitigationStatus; label: string}> =
     {value: '', label: 'Any Litigation'}, {value: 'YES', label: 'Has Related Litigation'}, {value: 'NO', label: 'No Known Litigation'},
 ];
 
-// --- Top-Level Helper Components ---
-function GoogleGIcon(): React.ReactElement { /* ... same ... */ 
-  return (<svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.2446 10.925L12.2446 14.005L18.7746 14.005C18.5346 15.095 18.0546 16.125 17.3446 16.965C16.5846 17.855 15.2746 18.665 13.4846 18.665C10.6846 18.665 8.31462 16.375 8.31462 13.495C8.31462 10.615 10.6846 8.32502 13.4846 8.32502C14.9346 8.32502 16.0046 8.92502 16.9546 9.81502L19.1146 7.71502C17.6746 6.38502 15.8046 5.32502 13.4846 5.32502C9.86462 5.32502 6.91462 8.22502 6.91462 11.995C6.91462 15.765 9.86462 18.665 13.4846 18.665C15.9146 18.665 17.7246 17.835 19.0646 16.415C20.4746 14.925 20.9846 12.925 20.9846 11.495C20.9846 10.925 20.9446 10.475 20.8546 10.005L13.4846 10.005L12.2446 10.925Z" /></svg>);
-}
-function getDateTypeLabel(value: DateType): string { /* ... same ... */ 
-    return dateTypeOptions.find(opt => opt.value === value)?.label || 'Select Type';
-}
-function getLitigationStatusLabel(value: LitigationStatus): string { /* ... same ... */ 
-    return litigationStatusOptions.find(opt => opt.value === value)?.label || 'Any Litigation';
-}
-function getConditionTypeIcon(type: SearchToolType): React.ReactElement { /* ... same ... */ 
+
+function GoogleGIcon(): React.ReactElement { /* ... */ return (<svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.2446 10.925L12.2446 14.005L18.7746 14.005C18.5346 15.095 18.0546 16.125 17.3446 16.965C16.5846 17.855 15.2746 18.665 13.4846 18.665C10.6846 18.665 8.31462 16.375 8.31462 13.495C8.31462 10.615 10.6846 8.32502 13.4846 8.32502C14.9346 8.32502 16.0046 8.92502 16.9546 9.81502L19.1146 7.71502C17.6746 6.38502 15.8046 5.32502 13.4846 5.32502C9.86462 5.32502 6.91462 8.22502 6.91462 11.995C6.91462 15.765 9.86462 18.665 13.4846 18.665C15.9146 18.665 17.7246 17.835 19.0646 16.415C20.4746 14.925 20.9846 12.925 20.9846 11.495C20.9846 10.925 20.9446 10.475 20.8546 10.005L13.4846 10.005L12.2446 10.925Z" /></svg>);}
+function getDateTypeLabel(value: DateType): string { /* ... */ return dateTypeOptions.find(opt => opt.value === value)?.label || 'Select Type';}
+function getLitigationStatusLabel(value: LitigationStatus): string { /* ... */ return litigationStatusOptions.find(opt => opt.value === value)?.label || 'Any Litigation';}
+function getConditionTypeIcon(type: SearchToolType): React.ReactElement { /* ... */ 
     switch(type) {
         case 'TEXT': return <TypeIcon size={18} className="text-gray-600" />;
         case 'CLASSIFICATION': return <Filter size={18} className="text-gray-600" />;
-        default: return <Settings2 size={18} className="text-gray-600" />;
+        case 'CHEMISTRY': return <FlaskConical size={18} className="text-orange-600" />;
+        case 'MEASURE': return <Ruler size={18} className="text-purple-600" />;
+        case 'NUMBERS': return <Hash size={18} className="text-teal-600" />;
+        default:
+            const _exhaustiveCheck: never = type;
+            console.error("Unhandled SearchToolType in getConditionTypeIcon:", _exhaustiveCheck);
+            return <Settings2 size={18} className="text-gray-600" />;
     }
 }
 
@@ -193,7 +214,7 @@ const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactN
 const ChatInput: React.FC<ChatInputProps> = ({
   value: mainQueryValue, activeFormat, onTabChange, onMainInputChange,
 }) => {
-  const createDefaultTextCondition = (): TextSearchCondition => ({ /* ... same ... */ 
+  const createDefaultTextCondition = (): TextSearchCondition => ({
     id: crypto.randomUUID(),
     type: 'TEXT',
     data: { text: '', selectedScopes: new Set(['FT']), termOperator: 'ALL' }
@@ -203,13 +224,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [googleLikeFields, setGoogleLikeFields] = useState<GoogleLikeSearchFields>({
     dateFrom: '', dateTo: '', dateType: 'publication',
     inventors: [], assignees: [],
-    patentOffices: [], 
-    languages: [], // CHANGED
+    patentOffices: [],
+    languages: [],
     status: '', patentType: '',
     litigation: '',
     cpc: '', specificTitle: '', documentId: ''
   });
-  // ... (other state: currentInventorInput, etc.) ...
   const [currentInventorInput, setCurrentInventorInput] = useState('');
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
   const inventorInputRef = useRef<HTMLInputElement>(null);
@@ -217,15 +237,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [isSearchToolModalOpen, setIsSearchToolModalOpen] = useState(false);
   const [editingCondition, setEditingCondition] = useState<SearchCondition | undefined>(undefined);
   const [queryLinkHref, setQueryLinkHref] = useState<string>('#');
-  
-  // State for custom dropdowns
+
   const [isPatentOfficeDropdownOpen, setIsPatentOfficeDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const patentOfficeRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
 
-  // Click outside handlers for custom dropdowns
-  useEffect(() => {
+  useEffect(() => { /* ... */ 
     function handleClickOutside(event: MouseEvent) {
       if (patentOfficeRef.current && !patentOfficeRef.current.contains(event.target as Node)) {
         setIsPatentOfficeDropdownOpen(false);
@@ -241,58 +259,66 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLInputElement>) => onMainInputChange(e.target.value);
   const handleTabClick = (newFormat: PatentFormat) => { if (newFormat !== activeFormat) onTabChange(newFormat); };
-  const handleOpenSearchToolModal = (conditionToEdit: SearchCondition) => { /* ... same ... */ 
+  const handleOpenSearchToolModal = (conditionToEdit: SearchCondition) => { /* ... */ 
     setEditingCondition(conditionToEdit);
     setIsSearchToolModalOpen(true);
   };
-  const handleCloseSearchToolModal = () => { /* ... same ... */ 
+  const handleCloseSearchToolModal = () => { /* ... */ 
     setIsSearchToolModalOpen(false);
     setEditingCondition(undefined);
   };
-  const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => { /* ... same ... */ 
+  const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => { /* ... */ 
     setSearchConditions(prev =>
       prev.map(sc => {
         if (sc.id === conditionId) {
           if (newType === 'TEXT') return { ...sc, type: 'TEXT', data: newData as InternalTextSearchData };
           if (newType === 'CLASSIFICATION') return { ...sc, type: 'CLASSIFICATION', data: newData as ClassificationSearchData };
-          return { ...sc, type: newType, data: newData };
+          if (newType === 'CHEMISTRY') return { ...sc, type: 'CHEMISTRY', data: newData as ChemistrySearchData };
+          if (newType === 'MEASURE') return { ...sc, type: 'MEASURE', data: newData as MeasureSearchData };
+          if (newType === 'NUMBERS') return { ...sc, type: 'NUMBERS', data: newData as NumbersSearchData };
+          console.warn(`Updating condition with potentially mismatched type/data. NewType: ${newType}`);
+          return { ...sc, type: newType, data: newData as any };
         }
         return sc;
       })
     );
     handleCloseSearchToolModal();
   };
-  const removeSearchCondition = (id: string) => { /* ... same ... */ 
+  const removeSearchCondition = (id: string) => { /* ... */ 
     setSearchConditions(prev => {
         let newConditions = prev.filter(sc => sc.id !== id);
         if (newConditions.length === 0) {
             newConditions = [createDefaultTextCondition()];
         } else {
             const lastCondition = newConditions[newConditions.length - 1];
-            const lastIsFilledText = lastCondition.type === 'TEXT' && (lastCondition.data as InternalTextSearchData).text.trim() !== '';
+            const lastIsFilledText = lastCondition.type === 'TEXT' && lastCondition.data.text.trim() !== '';
             const lastIsNonText = lastCondition.type !== 'TEXT';
-            if (lastIsFilledText || lastIsNonText) {
+            if (lastIsNonText || lastIsFilledText) {
                 newConditions.push(createDefaultTextCondition());
             }
         }
         return newConditions;
     });
   };
-  const updateSearchConditionText = (id: string, newText: string) => { /* ... same ... */ 
+  const updateSearchConditionText = (id: string, newText: string) => { /* ... */ 
     setSearchConditions(prevConditions => {
       let updatedConditions = prevConditions.map(sc =>
-        (sc.id === id && sc.type === 'TEXT') ? { ...sc, data: { ...(sc.data as InternalTextSearchData), text: newText } } : sc
+        (sc.id === id && sc.type === 'TEXT') ? { ...sc, data: { ...sc.data, text: newText } } : sc
       );
       const conditionIndex = updatedConditions.findIndex(sc => sc.id === id);
       if (conditionIndex === -1) return updatedConditions;
+      
       const currentCondition = updatedConditions[conditionIndex];
-      const isCurrentTextFilled = currentCondition.type === 'TEXT' && (currentCondition.data as InternalTextSearchData).text.trim() !== '';
-      const isCurrentTextEmpty = currentCondition.type === 'TEXT' && (currentCondition.data as InternalTextSearchData).text.trim() === '';
-      if (isCurrentTextFilled && conditionIndex === updatedConditions.length - 1) {
-        updatedConditions.push(createDefaultTextCondition());
-      }
-      else if (isCurrentTextEmpty && updatedConditions.length > 1 && conditionIndex < updatedConditions.length - 1) {
-         updatedConditions.splice(conditionIndex, 1);
+      if (currentCondition.type === 'TEXT') {
+        const isCurrentTextFilled = currentCondition.data.text.trim() !== '';
+        const isCurrentTextEmpty = currentCondition.data.text.trim() === '';
+
+        if (isCurrentTextFilled && conditionIndex === updatedConditions.length - 1) {
+          updatedConditions.push(createDefaultTextCondition());
+        }
+        else if (isCurrentTextEmpty && updatedConditions.length > 1 && conditionIndex < updatedConditions.length - 1) {
+           updatedConditions.splice(conditionIndex, 1);
+        }
       }
       if (updatedConditions.length === 0) {
         updatedConditions = [createDefaultTextCondition()];
@@ -300,11 +326,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return updatedConditions;
     });
   };
-  const handleGoogleLikeFieldChange = <K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => { /* ... same ... */ 
-    setGoogleLikeFields(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handlePatentOfficeToggle = (officeCode: PatentOffice) => {
+  const handleGoogleLikeFieldChange = <K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => { /* ... */ setGoogleLikeFields(prev => ({ ...prev, [field]: value }));};
+  const handlePatentOfficeToggle = (officeCode: PatentOffice) => { /* ... */ 
     setGoogleLikeFields(prev => {
       const newPatentOffices = prev.patentOffices.includes(officeCode)
         ? prev.patentOffices.filter(po => po !== officeCode)
@@ -312,8 +335,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return { ...prev, patentOffices: newPatentOffices };
     });
   };
-
-  const handleLanguageToggle = (langCode: Language) => {
+  const handleLanguageToggle = (langCode: Language) => { /* ... */ 
     setGoogleLikeFields(prev => {
         const newLanguages = prev.languages.includes(langCode)
         ? prev.languages.filter(lang => lang !== langCode)
@@ -321,8 +343,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         return {...prev, languages: newLanguages};
     });
   };
-
-  const addDynamicFieldEntry = (field: 'inventors' | 'assignees') => { /* ... same ... */ 
+  const addDynamicFieldEntry = (field: 'inventors' | 'assignees') => { /* ... */ 
     const currentInput = field === 'inventors' ? currentInventorInput : currentAssigneeInput;
     const setCurrentInput = field === 'inventors' ? setCurrentInventorInput : setCurrentAssigneeInput;
     const inputRef = field === 'inventors' ? inventorInputRef : assigneeInputRef;
@@ -331,27 +352,60 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setCurrentInput(''); inputRef.current?.focus();
     }
   };
-  const removeDynamicFieldEntry = (field: 'inventors' | 'assignees', id: string) => { /* ... same ... */ 
-    setGoogleLikeFields(prev => ({...prev, [field]: prev[field].filter(entry => entry.id !== id)}));
-  };
+  const removeDynamicFieldEntry = (field: 'inventors' | 'assignees', id: string) => { /* ... */ setGoogleLikeFields(prev => ({...prev, [field]: prev[field].filter(entry => entry.id !== id)}));};
 
   const fetchGoogleQueryDetailsFromServer = async (
     currentSearchConditions: SearchCondition[],
     currentGoogleFields: GoogleLikeSearchFields
-  ): Promise<{ queryStringDisplay: string; url: string }> => { /* ... same, but ensure patent_offices and languages are passed ... */ 
+  ): Promise<{ queryStringDisplay: string; url: string }> => {
     const search_conditions_payload: BackendSearchConditionPayload[] = currentSearchConditions
-      .map(condition => {
-        if (condition.type === 'TEXT' && !(condition.data as InternalTextSearchData).text.trim()) { return null; }
-        let conditionData = condition.data;
-        if (condition.type === 'TEXT') {
-          const textData = condition.data as InternalTextSearchData;
-          conditionData = { ...textData, selectedScopes: Array.from(textData.selectedScopes) };
+      .map((condition: SearchCondition) => {
+        let dataForPayload: any;
+
+        switch (condition.type) {
+          case 'TEXT':
+            if (!condition.data.text.trim()) return null;
+            dataForPayload = { ...condition.data, selectedScopes: Array.from(condition.data.selectedScopes) };
+            break;
+          case 'CLASSIFICATION':
+            if (!condition.data.cpc.trim()) return null;
+            dataForPayload = condition.data;
+            break;
+          case 'CHEMISTRY':
+            if (!condition.data.term.trim()) return null;
+            // Send only backend-relevant fields
+            dataForPayload = { 
+                term: condition.data.term, 
+                operator: condition.data.operator, 
+                docScope: condition.data.docScope 
+            };
+            break;
+          case 'MEASURE':
+            if (!condition.data.measurements.trim() && !condition.data.units_concepts.trim()) return null;
+            dataForPayload = {
+                measure_text: `${condition.data.measurements} ${condition.data.units_concepts}`.trim()
+            };
+            break;
+          case 'NUMBERS':
+            if (!condition.data.doc_ids_text.trim()) return null;
+            dataForPayload = {
+                doc_id: condition.data.doc_ids_text, // Keep as doc_id for backend
+                number_type: condition.data.number_type,
+                country_restriction: condition.data.country_restriction,
+                preferred_countries_order: condition.data.preferred_countries_order,
+            };
+            break;
+          default:
+            const _exhaustiveCheck: never = condition;
+            console.error("Unhandled SearchCondition type in fetchGoogleQueryDetailsFromServer:", _exhaustiveCheck);
+            return null;
         }
-        return { id: condition.id, type: condition.type, data: conditionData };
+        
+        return { id: condition.id, type: condition.type, data: dataForPayload };
       })
       .filter(Boolean) as BackendSearchConditionPayload[];
 
-    const payload = {
+    const payload = { /* ... */ 
       structured_search_conditions: search_conditions_payload.length > 0 ? search_conditions_payload : null,
       inventors: currentGoogleFields.inventors.length > 0 ? currentGoogleFields.inventors.map(inv => inv.value) : null,
       assignees: currentGoogleFields.assignees.length > 0 ? currentGoogleFields.assignees.map(asg => asg.value) : null,
@@ -359,8 +413,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
       after_date_type: currentGoogleFields.dateFrom ? currentGoogleFields.dateType : null,
       before_date: currentGoogleFields.dateTo || null,
       before_date_type: currentGoogleFields.dateTo ? currentGoogleFields.dateType : null,
-      patent_offices: currentGoogleFields.patentOffices.length > 0 ? currentGoogleFields.patentOffices : null, 
-      languages: currentGoogleFields.languages.length > 0 ? currentGoogleFields.languages : null, // CHANGED
+      patent_offices: currentGoogleFields.patentOffices.length > 0 ? currentGoogleFields.patentOffices : null,
+      languages: currentGoogleFields.languages.length > 0 ? currentGoogleFields.languages : null,
       status: currentGoogleFields.status || null,
       patent_type: currentGoogleFields.patentType || null,
       litigation: currentGoogleFields.litigation || null,
@@ -368,8 +422,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       dedicated_title: currentGoogleFields.specificTitle?.trim() || null,
       dedicated_document_id: currentGoogleFields.documentId?.trim() || null,
     };
-    // ... (fetch call as before)
-    try {
+    try { /* ... */ 
       const response = await fetch('/api/generate-google-query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', },
@@ -391,7 +444,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const assembleQuery = React.useCallback(async (formatToUse: PatentFormat = activeFormat) => { /* ... same ... */ 
+  const assembleQuery = React.useCallback(async (formatToUse: PatentFormat = activeFormat) => { /* ... */ 
     if (formatToUse === 'google') {
       const { queryStringDisplay, url } = await fetchGoogleQueryDetailsFromServer(searchConditions, googleLikeFields);
       onMainInputChange(queryStringDisplay);
@@ -400,7 +453,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       let queryParts: string[] = [];
       searchConditions.forEach(condition => {
         if (condition.type === 'TEXT') {
-          const textData = condition.data as InternalTextSearchData;
+          const textData = condition.data;
           if (!textData.text.trim()) return;
           const terms = textData.text.trim().split(/\s+/).filter(Boolean);
           if (terms.length === 0) return;
@@ -424,8 +477,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
           }
           if (fieldSpecificQueryParts.length > 0) queryParts.push(fieldSpecificQueryParts.length > 1 ? `(${fieldSpecificQueryParts.join(' OR ')})` : fieldSpecificQueryParts[0]);
         } else if (condition.type === 'CLASSIFICATION') {
-          const { cpc } = condition.data as ClassificationSearchData;
+          const { cpc } = condition.data;
           if (cpc && cpc.trim()) queryParts.push(`CPC/${cpc.trim()}`);
+        } else if (condition.type === 'NUMBERS') {
+            const firstNumber = condition.data.doc_ids_text.split('\n')[0].trim();
+            if (firstNumber) queryParts.push(`PN/${firstNumber.replace(/patent\//i, '')}`);
         }
       });
       const mapDateTypeToUSPTO = (dt: DateType) => { if(dt === 'filing') return 'APD'; if(dt === 'priority') return 'PRD'; return 'ISD'; }
@@ -437,7 +493,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       if (googleLikeFields.assignees.length > 0) { const asgQuery = googleLikeFields.assignees.map(asg => `"${asg.value.trim()}"`).join(' OR '); queryParts.push(`AN/(${asgQuery})`); }
       if (googleLikeFields.cpc?.trim()) queryParts.push(`CPC/${googleLikeFields.cpc.trim()}`);
       if (googleLikeFields.specificTitle?.trim()) queryParts.push(`TTL/("${googleLikeFields.specificTitle.trim()}")`);
-      if (googleLikeFields.documentId?.trim()) queryParts.push(`PN/("${googleLikeFields.documentId.trim()}")`);
+      if (googleLikeFields.documentId?.trim()) queryParts.push(`PN/("${googleLikeFields.documentId.trim().replace(/patent\//i, '')}")`);
       const assembled = queryParts.filter(Boolean).join(' AND ').trim();
       onMainInputChange(assembled);
       if (assembled.trim()) {
@@ -451,13 +507,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [activeFormat, searchConditions, googleLikeFields, onMainInputChange]);
 
-  useEffect(() => { /* ... same ... */ 
-    assembleQuery(activeFormat);
-  }, [activeFormat, searchConditions, googleLikeFields, assembleQuery]);
+  useEffect(() => { /* ... */ assembleQuery(activeFormat);}, [activeFormat, searchConditions, googleLikeFields, assembleQuery]);
 
-  const renderSearchConditionRow = (condition: SearchCondition, isForNewEntryPlaceholder: boolean, canBeRemoved: boolean): React.ReactNode => { /* ... same ... */ 
+  const renderSearchConditionRow = (condition: SearchCondition, isForNewEntryPlaceholder: boolean, canBeRemoved: boolean): React.ReactNode => { /* ... */ 
     if (condition.type === 'TEXT') {
-      const textData = condition.data as InternalTextSearchData;
+      const textData = condition.data;
       return (
         <div className="flex items-center w-full">
           <input type="text" value={textData.text} onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} placeholder={isForNewEntryPlaceholder ? "Type here to add search term..." : "Enter search terms..."} className="flex-grow p-2 border-none focus:ring-0 text-sm bg-transparent outline-none"/>
@@ -465,30 +519,62 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       );
     }
-    if (condition.type === 'CLASSIFICATION') {
-        const cpcData = condition.data as ClassificationSearchData;
-        let displayText = `CPC: ${cpcData.cpc}`;
-        if (activeFormat === 'google') { displayText = `cpc:${cpcData.cpc.trim().replace(/\//g, '')}`; } 
-        else { displayText = `CPC/${cpcData.cpc.trim()}`; }
-        displayText += ` (${cpcData.option === 'CHILDREN' ? 'incl. children' : 'exact'})`;
-        return (
-            <div className="flex items-center justify-between w-full">
-                <span className="text-sm p-2 flex-grow truncate">{displayText}</span>
-                {canBeRemoved && (<button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button>)}
-            </div>
-        );
+    let displayText = `${condition.type.charAt(0).toUpperCase() + condition.type.slice(1).toLowerCase()}: Click tool icon to configure`;
+    
+    switch (condition.type) {
+        case 'CLASSIFICATION':
+            const cpcData = condition.data;
+            let specificDataText = "";
+            if (activeFormat === 'google') { specificDataText = `cpc:${cpcData.cpc.trim().replace(/\//g, '')}`; }
+            else { specificDataText = `CPC/${cpcData.cpc.trim()}`; }
+            specificDataText += ` (${cpcData.option === 'CHILDREN' ? 'incl. children' : 'exact'})`;
+            displayText = specificDataText;
+            break;
+        case 'CHEMISTRY':
+            const chemData = condition.data;
+            displayText = `Chemistry: ${chemData.term ? `"${chemData.term}"` : "N/A"} (${chemData.uiOperatorLabel}, ${chemData.docScope})`;
+            break;
+        case 'MEASURE':
+            const measureData = condition.data;
+            const measurePart = measureData.measurements ? `"${measureData.measurements}"` : "N/A";
+            const unitsPart = measureData.units_concepts ? ` for "${measureData.units_concepts}"` : "";
+            displayText = `Measure: ${measurePart}${unitsPart}`;
+            if (measureData.measurements.trim() === "" && measureData.units_concepts.trim() === "") {
+                displayText = `Measure: N/A`;
+            }
+            break;
+        case 'NUMBERS':
+            const numData = condition.data;
+            const firstDocId = numData.doc_ids_text.split('\n')[0].trim();
+            const hasMoreIds = numData.doc_ids_text.includes('\n');
+            let numDisplayText = `Docs: ${firstDocId || "N/A"}${hasMoreIds ? "..." : ""}`;
+            if (numData.number_type !== 'EITHER') {
+                numDisplayText += ` (${numData.number_type.substring(0,3).toLowerCase()})`;
+            }
+            if (numData.country_restriction) {
+                numDisplayText += ` [${numData.country_restriction}]`;
+            }
+            if (numData.preferred_countries_order) {
+                 numDisplayText += ` (pref: ${numData.preferred_countries_order.substring(0,10)}${numData.preferred_countries_order.length > 10 ? '...' : ''})`;
+            }
+            displayText = numDisplayText;
+            break;
+        default:
+            const _exhaustiveCheck: never = condition;
+            console.error("Unhandled SearchCondition type in renderSearchConditionRow:", _exhaustiveCheck);
+            displayText = "Unknown Condition Type";
     }
+
     return (
         <div className="flex items-center justify-between w-full">
-            <span className="text-sm p-2 flex-grow text-gray-400 truncate">{`${condition.type.charAt(0).toUpperCase() + condition.type.slice(1).toLowerCase()}: Click tool icon to configure`}</span>
+            <span className="text-sm p-2 flex-grow truncate" title={displayText}>{displayText}</span>
             {canBeRemoved && (<button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button>)}
         </div>
     );
   };
 
-  // Generic MultiSelectDropdown Component (can be moved to its own file later)
   interface MultiSelectOption<T extends string> { value: T; label: string; }
-  interface MultiSelectDropdownProps<T extends string> {
+  interface MultiSelectDropdownProps<T extends string> { /* ... */ 
     label: string;
     icon: React.ReactNode;
     options: Array<MultiSelectOption<T>>;
@@ -499,7 +585,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     dropdownRef: React.RefObject<HTMLDivElement>;
   }
 
-  function MultiSelectDropdown<T extends string>({
+  function MultiSelectDropdown<T extends string>({ /* ... */ 
     label, icon, options, selectedValues, onToggle, isOpen, setIsOpen, dropdownRef
   }: MultiSelectDropdownProps<T>) {
     const displaySelected = () => {
@@ -546,16 +632,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* ... (rest of the JSX remains largely the same) ... */}
       <div className="text-center"><h2 className="text-2xl font-semibold text-gray-800">Patent Query Tool</h2></div>
       <div className="flex border-b border-gray-200">
         {formatTabs.map(tab => <button key={tab.value} onClick={() => handleTabClick(tab.value)} className={`flex items-center justify-center px-4 py-3 -mb-px text-sm font-medium focus:outline-none transition-colors duration-150 ${activeFormat === tab.value ? 'border-b-2 border-blue-600 text-blue-600' : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab.icon}{tab.label}</button>)}
       </div>
       <div className="space-y-1 pt-4">
-        <a 
-          href={mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !== '#' ? queryLinkHref : '#'} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className={`block text-sm font-medium mb-1 text-center ${mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !=='#' ? 'text-blue-600 hover:text-blue-800 hover:underline cursor-pointer' : 'text-gray-700 cursor-default'}`} 
+        <a
+          href={mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !== '#' ? queryLinkHref : '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`block text-sm font-medium mb-1 text-center ${mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !=='#' ? 'text-blue-600 hover:text-blue-800 hover:underline cursor-pointer' : 'text-gray-700 cursor-default'}`}
           onClick={(e) => { if (!mainQueryValue.trim() || mainQueryValue.startsWith("Error") || queryLinkHref === '#') e.preventDefault(); }}
         >
           Search Query {mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !=='#' && <LinkIcon className="inline-block h-3 w-3 ml-1 mb-0.5" />}
@@ -570,9 +657,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
           {searchConditions.map((condition, index) => {
             const isLastCondition = index === searchConditions.length - 1;
             const isTextCondition = condition.type === 'TEXT';
-            const textData = isTextCondition ? (condition.data as InternalTextSearchData) : { text: '' };
+            const textData = isTextCondition ? condition.data : { text: '' };
             const isForNewEntryPlaceholder = isLastCondition && isTextCondition && textData.text.trim() === '';
-            const canBeRemoved = !(searchConditions.length === 1 && isTextCondition && textData.text.trim() === '');
+            
+            const canBeRemoved = searchConditions.length > 1 ||
+                                (condition.type !== 'TEXT') ||
+                                (condition.type === 'TEXT' && (condition.data as InternalTextSearchData).text.trim() !== '');
+
             return (
                 <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-stretch">
                 <div className="flex-grow min-w-0 border-r border-gray-300">
@@ -589,7 +680,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <div className="pt-4 border-t border-gray-200">
         <h3 className="text-lg font-medium text-gray-700 mb-3">Search Fields</h3>
         <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
-            <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm space-y-2">
+            {/* ... Search Fields JSX ... */}
+             <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm space-y-2">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center"><CalendarDays className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" /><span className="text-sm font-medium text-gray-700">Date</span></div>
                     <div className="relative group flex-shrink-0" style={{minWidth: '150px'}}>
@@ -680,3 +772,4 @@ const ChatInput: React.FC<ChatInputProps> = ({
   );
 };
 export default ChatInput;
+// --- END OF FILE ChatInput.tsx ---
