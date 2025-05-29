@@ -1,104 +1,190 @@
-# google_generate_query_url.py
+# google_generate_query.py
 import urllib.parse
 import re
 
+      
+def _format_scoped_content(scope_prefix, content):
+    # Goal: SCOPE=(value), SCOPE="exact phrase", SCOPE=(A OR B)
+    if (content.startswith('"') and content.endswith('"')) or \
+       (content.startswith('(') and content.endswith(')')):
+        # If content is already fully quoted or fully parenthesized (like an OR group)
+        return f"{scope_prefix}={content}" 
+    else: # Simple term
+        return f"{scope_prefix}=({content})"
 def _process_structured_condition_to_string(condition_payload):
     condition_type = condition_payload.get('type')
     condition_data = condition_payload.get('data', {})
 
+    if not condition_data:
+        return ""
+
     if condition_type == 'TEXT':
-        text = condition_data.get('text', '').strip()
+        text_value = condition_data.get('text')
+        text = text_value.strip() if isinstance(text_value, str) else ""
+        
         if not text: return ""
         
         raw_terms_from_text = [t for t in text.split() if t]
         if not raw_terms_from_text: return ""
 
         selected_scopes_input = condition_data.get('selectedScopes', ['FT'])
-        # Ensure selected_scopes is a list
-        selected_scopes = list(selected_scopes_input) if isinstance(selected_scopes_input, (list, set)) else ['FT']
+        raw_scopes = list(selected_scopes_input) if isinstance(selected_scopes_input, (list, set)) else ['FT']
+        selected_scopes = [s.upper() for s in raw_scopes if isinstance(s, str) and s.strip()]
+        if not selected_scopes:
+            selected_scopes = ['FT']
         
         term_operator = condition_data.get('termOperator', 'ALL')
         
         content_terms = []
-        if term_operator == 'EXACT': 
-            content_terms = [text] 
-        else:
-            if term_operator in ['ANY', 'ALL', 'NONE']: 
-                content_terms = [t for t in raw_terms_from_text if t.upper() not in ['OR', 'AND', 'NOT']]
-                if not content_terms and raw_terms_from_text: 
-                    content_terms = raw_terms_from_text
-            else: 
-                content_terms = raw_terms_from_text
+        if term_operator == 'EXACT':
+            content_terms = [text] if text else []
+        elif term_operator == 'NONE':
+            content_terms = raw_terms_from_text
+        else: 
+            filtered_terms = [t for t in raw_terms_from_text if t.upper() not in ['OR', 'AND', 'NOT']]
+            if not filtered_terms and raw_terms_from_text and term_operator == 'ALL':
+                content_terms = [text] 
+            else:
+                content_terms = filtered_terms
         
         if not content_terms: return ""
 
-        processed_terms_content = "" 
-
+        processed_terms_content = ""
         if term_operator == 'EXACT':
-            processed_terms_content = f'"{text}"' 
+            processed_terms_content = f'"{text}"'
         elif term_operator == 'ANY':
-            processed_terms_content = " OR ".join([f'"{t}"' if " " in t else t for t in content_terms])
+            # For ANY, if content_terms is ["term1", "term2"], result is "(term1 OR term2)"
+            # If content_terms is ["singleterm"], result is "singleterm"
+            temp_join = " OR ".join(content_terms)
             if len(content_terms) > 1: 
-                processed_terms_content = f"({processed_terms_content})"
+                processed_terms_content = f"({temp_join})"
+            else:
+                processed_terms_content = temp_join # or content_terms[0]
         elif term_operator == 'NONE':
             processed_terms_content = " ".join([f'-"{t}"' if " " in t else f'-{t}' for t in content_terms])
         else: # ALL (default)
-            processed_terms_content = " ".join([f'"{t}"' if " " in t else t for t in content_terms])
+            # If content_terms has one item which is a multi-word phrase (e.g. from "NOT AND OR" case), quote it.
+            if len(content_terms) == 1 and (" " in content_terms[0] or (content_terms[0].upper() in ['OR', 'AND', 'NOT'])) :
+                 processed_terms_content = f'"{content_terms[0]}"'
+            else: # Standard space-separated terms for ALL
+                 processed_terms_content = " ".join(content_terms)
+
 
         if not processed_terms_content:
             return ""
 
-        if 'FT' in selected_scopes or not selected_scopes: 
-            return processed_terms_content 
+        ordered_non_ft_scopes = [s for s in selected_scopes if s != 'FT']
+
+        if 'FT' in selected_scopes or not ordered_non_ft_scopes:
+            return processed_terms_content
         else:
-            # Use a list derived from selected_scopes to maintain order, filtering FT
-            ordered_non_ft_scopes = [s for s in selected_scopes if s != 'FT']
-
-            if not ordered_non_ft_scopes: # Should not happen if FT was not the only scope
-                return processed_terms_content
-
-            # Check for TAC: if TI, AB, CL are all present and are the *only* non-FT scopes
             is_ti_present = 'TI' in ordered_non_ft_scopes
             is_ab_present = 'AB' in ordered_non_ft_scopes
             is_cl_present = 'CL' in ordered_non_ft_scopes
+
             if is_ti_present and is_ab_present and is_cl_present and len(ordered_non_ft_scopes) == 3:
-                # This check ensures that ordered_non_ft_scopes *only* contains TI, AB, CL.
-                return f"TAC=({processed_terms_content})"
+                return _format_scoped_content("TAC", processed_terms_content)
             
-            scoped_parts = []
+            tac_like_parts = []
+            cpc_any_multi_code_parts = []
+            general_cpc_part = [] # Should only ever hold one item if CPC is general
+
+            # Check if CPC needs special handling for ANY with multiple individual codes
+            # (i.e., not a phrase that happens to contain "OR")
+            is_cpc_present = 'CPC' in ordered_non_ft_scopes
+            special_cpc_any_handling = is_cpc_present and \
+                                       term_operator == 'ANY' and \
+                                       len(content_terms) > 1 and \
+                                       all(not (" " in term) for term in content_terms) # individual codes
+
+            for scope in ordered_non_ft_scopes:
+                if scope == 'CPC' and special_cpc_any_handling:
+                    # This block will be entered only once for 'CPC' if conditions met
+                    for cpc_code_item in content_terms: # content_terms are individual CPC codes
+                        cpc_any_multi_code_parts.append(f"CPC=({cpc_code_item})")
+                elif scope in ['TI', 'AB', 'CL']:
+                    tac_like_parts.append(_format_scoped_content(scope, processed_terms_content))
+                elif scope == 'CPC': # General CPC (not special ANY multi-code handled above)
+                    general_cpc_part.append(_format_scoped_content(scope, processed_terms_content))
             
-            # Iterate through the ordered non-FT scopes as derived from input
-            for scope_val in ordered_non_ft_scopes:
-                if scope_val == 'CPC' and term_operator == 'ANY' and len(content_terms) > 1:
-                    # Special handling for CPC with ANY operator and multiple CPC codes
-                    # Each content_term is treated as a separate CPC code
-                    for cpc_code_item in content_terms:
-                        scoped_parts.append(f"CPC=({cpc_code_item})")
-                elif scope_val == 'TI':
-                    scoped_parts.append(f"TI=({processed_terms_content})")
-                elif scope_val == 'AB':
-                    scoped_parts.append(f"AB=({processed_terms_content})")
-                elif scope_val == 'CL':
-                    scoped_parts.append(f"CL=({processed_terms_content})")
-                elif scope_val == 'CPC': # CPC not matching the ANY multi-term case (e.g., ALL operator, or ANY with single term)
-                    scoped_parts.append(f"CPC=({processed_terms_content})")
-                # Add other specific scope handling here if necessary
+            all_query_segments = []
+            if tac_like_parts:
+                # If multiple TI,AB,CL parts, they form an OR group, already formatted by _format_scoped_content
+                # So, (FIELD=(value) OR FIELD=(value))
+                all_query_segments.append(f"({ ' OR '.join(tac_like_parts) })" if len(tac_like_parts) > 1 else tac_like_parts[0])
             
-            if not scoped_parts: 
-                return processed_terms_content # Fallback
+            if general_cpc_part: # This will be like [CPC=(value)] or [CPC=("phrase")]
+                 all_query_segments.extend(general_cpc_part)
+
+            if cpc_any_multi_code_parts:
+                # This will be like [CPC=(code1), CPC=(code2)]
+                # Needs to be grouped as (CPC=(code1) OR CPC=(code2))
+                cpc_group_str = f"({ ' OR '.join(cpc_any_multi_code_parts) })" if len(cpc_any_multi_code_parts) > 1 else cpc_any_multi_code_parts[0]
+                all_query_segments.append(cpc_group_str)
+
+            if not all_query_segments: return processed_terms_content # Fallback
+
+            # Join the major segments (e.g., TAC-like group, general CPC, CPC-ANY-multi group) with OR
+            final_scoped_expr = " OR ".join(all_query_segments)
             
-            final_scoped_expr = " OR ".join(scoped_parts)
-            
-            # Parenthesize if it's an OR expression resulting from multiple scoped_parts
-            if len(scoped_parts) > 1: 
-                 return f"({final_scoped_expr})"
-            return final_scoped_expr # Single scoped part, no outer parentheses needed unless already in part
+            # Add outer parentheses if the final expression is an OR of multiple major segments
+            if len(all_query_segments) > 1 :
+                return f"({final_scoped_expr})"
+            return final_scoped_expr
+
 
     elif condition_type == 'CLASSIFICATION':
-        cpc_code = condition_data.get('cpc', '').strip()
+        cpc_code_value = condition_data.get('cpc')
+        cpc_code = cpc_code_value.strip() if isinstance(cpc_code_value, str) else ""
         if cpc_code: return f"cpc:{cpc_code.replace('/', '')}"
         return ""
+
+    elif condition_type == 'CHEMISTRY':
+        term_value = condition_data.get('term')
+        term = term_value.strip() if isinstance(term_value, str) else ""
+        operator = condition_data.get('operator', 'EXACT') 
+        doc_scope = condition_data.get('docScope', 'FULL') 
+
+        if not term: return ""
+
+        query_part = "" # This will be the core chemical term, possibly quoted or with operator
+        if operator == 'SIMILAR':
+            query_part = f"~({term})"
+        elif operator == 'SUBSTRUCTURE':
+            query_part = f"SSS=({term})" # This is already a full field=value
+        elif operator == 'SMARTS':
+            query_part = f"SMARTS=({term})" # This is already a full field=value
+        else: # EXACT or EXACT_BATCH
+            query_part = f'"{term}"' if " " in term else term
+
+        # If SSS or SMARTS, they are already complete query parts.
+        if operator in ['SUBSTRUCTURE', 'SMARTS']:
+            return query_part
+
+        # For EXACT, SIMILAR, apply CL scope if needed
+        if doc_scope == 'CLAIMS_ONLY':
+            return _format_scoped_content("CL", query_part) # CL=(value) or CL=("phrase") or CL=(~(value))
+        
+        return query_part # For FULL docs: "term", "\"multi word term\"", or "~(term)"
+
+    elif condition_type == 'MEASURE':
+        measure_text_value = condition_data.get('measure_text')
+        measure_text = measure_text_value.strip() if isinstance(measure_text_value, str) else ""
+        if not measure_text: return ""
+        return _format_scoped_content("MEASURE", measure_text) # MEASURE=(measure_text)
+
+
+    elif condition_type == 'NUMBERS': 
+        doc_id_value = condition_data.get('doc_id')
+        doc_id = doc_id_value.strip() if isinstance(doc_id_value, str) else ""
+        if not doc_id: return ""
+        
+        if doc_id.startswith("patent/"):
+            return f"({doc_id})" 
+        return f"(patent/{doc_id})"
+
     return ""
+
 
 def generate_google_patents_query(
     structured_search_conditions: list = None,
@@ -129,7 +215,6 @@ def generate_google_patents_query(
             if term_string:
                 all_search_terms_for_q_url.append(term_string)
     
-    # Add dedicated fields to the all_search_terms_for_q_url list
     if dedicated_cpc and isinstance(dedicated_cpc, str) and dedicated_cpc.strip():
         all_search_terms_for_q_url.append(f"cpc:{dedicated_cpc.replace('/', '')}")
     if dedicated_title and isinstance(dedicated_title, str) and dedicated_title.strip():
@@ -137,7 +222,6 @@ def generate_google_patents_query(
     if dedicated_document_id and isinstance(dedicated_document_id, str) and dedicated_document_id.strip():
         all_search_terms_for_q_url.append(f"\"{dedicated_document_id}\"")
 
-    # Process all_search_terms_for_q_url for URL's q parameters and for display_query_parts_q_terms
     if all_search_terms_for_q_url:
         valid_q_terms = [term.strip() for term in all_search_terms_for_q_url if term.strip()]
         if valid_q_terms:
@@ -146,37 +230,30 @@ def generate_google_patents_query(
         for term_str_entry in all_search_terms_for_q_url: 
             term_str = term_str_entry.strip()
             if not term_str: continue
-
-            is_google_fielded_term = bool(re.match(r"^(TI|AB|CL|CPC|TAC|PN|APN|inventor|assignee|before|after|country|language|status|ptype|litigation|scholar|partner|priorArt|title|abstract|cpc)\s*[:=]\s*\(?.+", term_str, re.IGNORECASE)) or \
-                                     bool(re.match(r"^(InChIKey|CAS)\s*[:=].+", term_str, re.IGNORECASE))
             
-            is_complex_or_expression_of_fielded_terms = term_str.startswith("(") and term_str.endswith(")") and " OR " in term_str and any(f_p in term_str for f_p in ["TI=","AB=","CL=","CPC=","country:","language:"])
+            # Check if term_str is ALREADY a complete display unit that should not be further parenthesized.
+            is_complete_display_unit = \
+                bool(re.match(r"^[A-Za-z]+\s*=\s*.*$", term_str)) or \
+                (term_str.startswith('"') and term_str.endswith('"')) or \
+                (term_str.startswith('(') and term_str.endswith(')') and \
+                 (" OR " in term_str or term_str.lower().startswith("(patent/"))) or \
+                bool(re.match(r"^(cpc|title):", term_str, re.IGNORECASE)) or \
+                term_str.startswith("~(") # For similar chemistry search, SSS=(), SMARTS=() are caught by first line
 
-            is_already_parenthesized = term_str.startswith("(") and term_str.endswith(")")
-            is_quoted_phrase = term_str.startswith("\"") and term_str.endswith("\"")
-
-            if is_google_fielded_term or is_complex_or_expression_of_fielded_terms or is_quoted_phrase:
+            if is_complete_display_unit:
                 display_query_parts_q_terms.append(term_str)
-            elif is_already_parenthesized: 
-                display_query_parts_q_terms.append(term_str)
-            elif ' ' in term_str or re.search(r'\b(OR|AND|NOT)\b', term_str, re.IGNORECASE):
-                display_query_parts_q_terms.append(f"({term_str})")
-            else: 
-                display_query_parts_q_terms.append(f"({term_str})") 
+            else: # Simple terms (e.g., from FT/ALL, or single CHEM/EXACT/FULL_DOCS) that need display parentheses
+                 display_query_parts_q_terms.append(f"({term_str})")
         
-    # --- Process single-value or direct URL parameter fields ---
-
-    # Patent Offices: Use direct 'country' URL param with comma-separated list
     if patent_offices and isinstance(patent_offices, list) and len(patent_offices) > 0:
-        valid_po_codes = [po.strip().upper() for po in patent_offices if po.strip()]
+        valid_po_codes = [po.strip().upper() for po in patent_offices if isinstance(po, str) and po.strip()]
         if valid_po_codes:
             comma_separated_pos = ','.join(valid_po_codes)
             url_params_dict['country'] = comma_separated_pos 
             display_query_parts_fields.append(f"country:{comma_separated_pos}")
 
-    # Languages: Use direct 'language' URL param with comma-separated list
     if languages and isinstance(languages, list) and len(languages) > 0:
-        valid_lang_codes = [lang.strip().upper() for lang in languages if lang.strip()]
+        valid_lang_codes = [lang.strip().upper() for lang in languages if isinstance(lang, str) and lang.strip()]
         if valid_lang_codes:
             comma_separated_langs = ','.join(valid_lang_codes)
             url_params_dict['language'] = comma_separated_langs
@@ -197,18 +274,21 @@ def generate_google_patents_query(
     date_format_error_msg = "Date must be in YYYY-MM-DD or YYYYMMDD format."
     date_validation_regex = r"^(?:\d{4}\d{2}\d{2}|\d{4}-\d{2}-\d{2})$"
     valid_date_types = ["priority", "filing", "publication"]
+
     if after_date_type and after_date_type.lower() not in valid_date_types: raise ValueError(f"Invalid 'after_date_type': {after_date_type}. Must be one of {valid_date_types}.")
     if before_date_type and before_date_type.lower() not in valid_date_types: raise ValueError(f"Invalid 'before_date_type': {before_date_type}. Must be one of {valid_date_types}.")
+    
     if after_date and after_date_type:
         after_date_val = str(after_date).strip()
-        if not (isinstance(after_date_val, str) and re.fullmatch(date_validation_regex, after_date_val)): raise ValueError(f"Invalid 'after_date' format: '{after_date_val}'. {date_format_error_msg}")
+        if not re.fullmatch(date_validation_regex, after_date_val): raise ValueError(f"Invalid 'after_date' format: '{after_date_val}'. {date_format_error_msg}")
         formatted_date = after_date_val.replace("-", "")
         param_value = f"{after_date_type.lower()}:{formatted_date}"
         url_params_dict['after'] = param_value
         display_query_parts_fields.append(f"after:{param_value}")
+
     if before_date and before_date_type:
         before_date_val = str(before_date).strip()
-        if not (isinstance(before_date_val, str) and re.fullmatch(date_validation_regex, before_date_val)): raise ValueError(f"Invalid 'before_date' format: '{before_date_val}'. {date_format_error_msg}")
+        if not re.fullmatch(date_validation_regex, before_date_val): raise ValueError(f"Invalid 'before_date' format: '{before_date_val}'. {date_format_error_msg}")
         formatted_date = before_date_val.replace("-", "")
         param_value = f"{before_date_type.lower()}:{formatted_date}"
         url_params_dict['before'] = param_value
@@ -223,9 +303,9 @@ def generate_google_patents_query(
         url_params_dict['ptype'] = ptype_val
         display_query_parts_fields.append(f"type:{ptype_val}")
     
-    url_litigation_param = ""
     if litigation and isinstance(litigation, str) and litigation.strip():
         litigation_normalized = litigation.strip().upper().replace(" ", "_")
+        url_litigation_param = ""
         if litigation_normalized == "HAS_RELATED_LITIGATION" or litigation_normalized == "YES": url_litigation_param = "YES"
         elif litigation_normalized == "NO_KNOWN_LITIGATION" or litigation_normalized == "NO": url_litigation_param = "NO"
         else: raise ValueError(f"Invalid litigation value: {litigation}.")
