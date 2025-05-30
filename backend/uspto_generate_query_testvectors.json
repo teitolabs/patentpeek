@@ -1,0 +1,733 @@
+[
+    {
+        "description": "TC1: Basic single text term, all fields",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "solar"}}
+            ]
+        },
+        "expected_display_query": "solar",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=solar&type=queryString"
+    },
+    {
+        "description": "TC2: Text term in Title (TI)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "engine", "field": "TI"}}
+            ]
+        },
+        "expected_display_query": "engine.ti.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=engine.ti.&type=queryString"
+    },
+    {
+        "description": "TC3: Multi-word text in Abstract (AB) with default ADJ",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "electric vehicle", "field": "AB"}}
+            ]
+        },
+        "expected_display_query": "(electric ADJ vehicle).ab.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28electric%20ADJ%20vehicle%29.ab.&type=queryString"
+    },
+    {
+        "description": "TC4: Exact phrase text condition",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "renewable energy source", "field": "ALL", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "\"renewable energy source\"",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%22renewable%20energy%20source%22&type=queryString"
+    },
+    {
+        "description": "TC5: Inventor search",
+        "input": {
+            "conditions": [
+                {"type": "INVENTOR", "data": {"name": "Smith John"}}
+            ]
+        },
+        "expected_display_query": "(Smith ADJ John).in.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28Smith%20ADJ%20John%29.in.&type=queryString"
+    },
+    {
+        "description": "TC6: Assignee search with custom multi-word op",
+        "input": {
+            "conditions": [
+                {"type": "ASSIGNEE", "data": {"name": "International Business Machines", "multi_word_op": "AND"}}
+            ]
+        },
+        "expected_display_query": "(International AND Business AND Machines).as.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28International%20AND%20Business%20AND%20Machines%29.as.&type=queryString"
+    },
+    {
+        "description": "TC7: CPC Classification search",
+        "input": {
+            "conditions": [
+                {"type": "CLASSIFICATION", "data": {"value": "G06F 3/048", "class_type": "CPC"}}
+            ]
+        },
+        "expected_display_query": "G06F3/048.cpc.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=G06F3%2F048.cpc.&type=queryString"
+    },
+    {
+        "description": "TC8: CCLS Classification search",
+        "input": {
+            "conditions": [
+                {"type": "CLASSIFICATION", "data": {"value": "D12/175", "class_type": "CCLS"}}
+            ]
+        },
+        "expected_display_query": "D12/175.ccls.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=D12%2F175.ccls.&type=queryString"
+    },
+    {
+        "description": "TC9: Date search (Publication Date)",
+        "input": {
+            "conditions": [
+                {"type": "DATE", "data": {"field": "PD", "expression": ">=20230101"}}
+            ]
+        },
+        "expected_display_query": "@PD>=20230101",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%40PD%3E%3D20230101&type=queryString"
+    },
+    {
+        "description": "TC10: Single Patent Number search (type=ids)",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["11235876"]}}
+            ]
+        },
+        "expected_display_query": "(11235876).pn.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%2811235876%29.pn.&type=ids"
+    },
+    {
+        "description": "TC11: Multiple Patent Numbers search (type=ids)",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["11235876", "D080000", "RE12345"]}}
+            ]
+        },
+        "expected_display_query": "(11235876|D080000|RE12345).pn.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%2811235876%7CD080000%7CRE12345%29.pn.&type=ids"
+    },
+    {
+        "description": "TC12: Multiple conditions (Text AND Assignee) with USPAT database",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "drone", "field": "TI"}},
+                {"type": "ASSIGNEE", "data": {"name": "Amazon Tech"}}
+            ],
+            "databases": ["USPAT"]
+        },
+        "expected_display_query": "(drone.ti.) AND ((Amazon ADJ Tech).as.)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28drone.ti.%29%20AND%20%28%28Amazon%20ADJ%20Tech%29.as.%29&db=USPAT&type=queryString"
+    },
+    {
+        "description": "TC13: Multiple conditions (Text OR Date) with US-PGPUB,USOCR databases",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "algorithm", "field": "AB"}},
+                {"type": "DATE", "data": {"field": "AD", "expression": "<=20201231"}}
+            ],
+            "databases": ["US-PGPUB", "USOCR"],
+            "combine_conditions_with": "OR"
+        },
+        "expected_display_query": "(algorithm.ab.) OR (@AD<=20201231)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28algorithm.ab.%29%20OR%20%28%40AD%3C%3D20201231%29&db=US-PGPUB%2CUSOCR&type=queryString"
+    },
+    {
+        "description": "TC14: No conditions, only databases",
+        "input": {
+            "databases": ["USPAT", "USOCR"]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?db=USPAT%2CUSOCR"
+    },
+    {
+        "description": "TC15: Empty input",
+        "input": {},
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC16: Text condition with pre-existing operators",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "cat OR dog", "field": "ALL"}}
+            ]
+        },
+        "expected_display_query": "cat OR dog",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=cat%20OR%20dog&type=queryString"
+    },
+    {
+        "description": "TC17: Text condition with pre-existing operators and field",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "(cat OR dog) AND fish", "field": "AB"}}
+            ]
+        },
+        "expected_display_query": "((cat OR dog) AND fish).ab.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28%28cat%20OR%20dog%29%20AND%20fish%29.ab.&type=queryString"
+    },
+    {
+        "description": "TC18: Document ID search",
+        "input": {
+            "conditions": [
+                {"type": "DOCUMENT_ID", "data": {"doc_id": "US-11223344-B2"}}
+            ]
+        },
+        "expected_display_query": "US-11223344-B2.did.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=US-11223344-B2.did.&type=queryString"
+    },
+    {
+        "description": "TC19: Patent number search with already formatted number",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["12345.pn."]} }
+            ]
+        },
+        "expected_display_query": "12345.pn.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=12345.pn.&type=ids"
+    },
+    {
+        "description": "TC20: Multiple patent numbers, one already formatted",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["12345.pn.", "67890"]} }
+            ]
+        },
+        "expected_display_query": "(12345.pn.) OR ((67890).pn.)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%2812345.pn.%29%20OR%20%28%2867890%29.pn.%29&type=ids"
+    },
+    {
+        "description": "TC21: Text search with empty text string",
+        "input": {
+             "conditions": [
+                {"type": "TEXT", "data": {"text": "  ", "field": "TI"}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC22: Complex query with multiple types and operators",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "advanced battery technology", "field": "TI", "multi_word_op": "ADJ"}},
+                {"type": "ASSIGNEE", "data": {"name": "Future Energy Corp", "multi_word_op": "ADJ"}},
+                {"type": "CLASSIFICATION", "data": {"value": "H01M 10/052", "class_type": "CPC"}},
+                {"type": "DATE", "data": {"field": "PD", "expression": ">=20210101"}},
+                {"type": "DATE", "data": {"field": "PD", "expression": "<=20211231"}}
+            ],
+            "databases": ["USPAT", "US-PGPUB"],
+            "combine_conditions_with": "AND"
+        },
+        "expected_display_query": "((advanced ADJ battery ADJ technology).ti.) AND ((Future ADJ Energy ADJ Corp).as.) AND (H01M10/052.cpc.) AND (@PD>=20210101) AND (@PD<=20211231)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28%28advanced%20ADJ%20battery%20ADJ%20technology%29.ti.%29%20AND%20%28%28Future%20ADJ%20Energy%20ADJ%20Corp%29.as.%29%20AND%20%28H01M10%2F052.cpc.%29%20AND%20%28%40PD%3E%3D20210101%29%20AND%20%28%40PD%3C%3D20211231%29&db=USPAT%2CUS-PGPUB&type=queryString"
+    },
+    {
+        "description": "TC23: TEXT - Claim (CLMS) field, multi-word NEAR",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "adjustable support member", "field": "CLMS", "multi_word_op": "NEAR"}}
+            ]
+        },
+        "expected_display_query": "(adjustable NEAR support NEAR member).clms.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28adjustable%20NEAR%20support%20NEAR%20member%29.clms.&type=queryString"
+    },
+    {
+        "description": "TC24: TEXT - Specification (SPEC) field, single word",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "embodiment", "field": "SPEC"}}
+            ]
+        },
+        "expected_display_query": "embodiment.spec.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=embodiment.spec.&type=queryString"
+    },
+    {
+        "description": "TC25: TEXT - Exact phrase with internal quotes (user-provided)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "\"light emitting diode\" array", "field": "TI", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "\"\\\"light emitting diode\\\" array\".ti.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%22%5C%22light%20emitting%20diode%5C%22%20array%22.ti.&type=queryString"
+    },
+    {
+        "description": "TC26: TEXT - Field code case-insensitivity (e.g., ti should become .ti.)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "test", "field": "Ti"}}
+            ]
+        },
+        "expected_display_query": "test.ti.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=test.ti.&type=queryString"
+    },
+    {
+        "description": "TC27: TEXT - Empty text string with a field",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "   ", "field": "AB"}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC28: TEXT - Exact empty text string",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "", "field": "ALL", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC29: PATENT_NUMBERS - Single application number formatted via TEXT/APP",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "10/123456", "field": "APP"}}
+            ]
+        },
+        "expected_display_query": "(10/123456).app.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%2810%2F123456%29.app.&type=queryString"
+    },
+    {
+        "description": "TC30: PATENT_NUMBERS - Empty list of numbers",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": []}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC31: CLASSIFICATION - IPC type",
+        "input": {
+            "conditions": [
+                {"type": "CLASSIFICATION", "data": {"value": "A61K 31/00", "class_type": "IPC"}}
+            ]
+        },
+        "expected_display_query": "A61K31/00.ipc.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=A61K31%2F00.ipc.&type=queryString"
+    },
+    {
+        "description": "TC32: CLASSIFICATION - Empty value",
+        "input": {
+            "conditions": [
+                {"type": "CLASSIFICATION", "data": {"value": "", "class_type": "CPC"}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC33: INVENTOR - Name with apostrophe",
+        "input": {
+            "conditions": [
+                {"type": "INVENTOR", "data": {"name": "O'Malley John"}}
+            ]
+        },
+        "expected_display_query": "(O'Malley ADJ John).in.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28O%27Malley%20ADJ%20John%29.in.&type=queryString"
+    },
+    {
+        "description": "TC34: ASSIGNEE - Name with hyphen",
+        "input": {
+            "conditions": [
+                {"type": "ASSIGNEE", "data": {"name": "Sony-Ericsson Mobile"}}
+            ]
+        },
+        "expected_display_query": "(Sony-Ericsson ADJ Mobile).as.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28Sony-Ericsson%20ADJ%20Mobile%29.as.&type=queryString"
+    },
+    {
+        "description": "TC35: INVENTOR - Empty name",
+        "input": {
+            "conditions": [
+                {"type": "INVENTOR", "data": {"name": ""}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC36: DATE - Application Filing Date (AD)",
+        "input": {
+            "conditions": [
+                {"type": "DATE", "data": {"field": "AD", "expression": "=20190704"}}
+            ]
+        },
+        "expected_display_query": "@AD=20190704",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%40AD%3D20190704&type=queryString"
+    },
+    {
+        "description": "TC37: DATE - Application Year (AY)",
+        "input": {
+            "conditions": [
+                {"type": "DATE", "data": {"field": "AY", "expression": ">=2020"}}
+            ]
+        },
+        "expected_display_query": "@AY>=2020",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%40AY%3E%3D2020&type=queryString"
+    },
+    {
+        "description": "TC38: DATE - Date range expression",
+        "input": {
+            "conditions": [
+                {"type": "DATE", "data": {"field": "PD", "expression": ">=20200101<=20201231"}}
+            ]
+        },
+        "expected_display_query": "@PD>=20200101<=20201231",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%40PD%3E%3D20200101%3C%3D20201231&type=queryString"
+    },
+    {
+        "description": "TC39: DOCUMENT_ID - Empty ID",
+        "input": {
+            "conditions": [
+                {"type": "DOCUMENT_ID", "data": {"doc_id": ""}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC40: Combination - Text (TI) OR Inventor (IN) with OR operator",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "nanotube", "field": "TI"}},
+                {"type": "INVENTOR", "data": {"name": "Iijima Sumio"}}
+            ],
+            "combine_conditions_with": "OR"
+        },
+        "expected_display_query": "(nanotube.ti.) OR ((Iijima ADJ Sumio).in.)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28nanotube.ti.%29%20OR%20%28%28Iijima%20ADJ%20Sumio%29.in.%29&type=queryString"
+    },
+    {
+        "description": "TC41: Databases - No databases specified (should omit &db=)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "graphene"}}
+            ],
+            "databases": []
+        },
+        "expected_display_query": "graphene",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=graphene&type=queryString"
+    },
+    {
+        "description": "TC42: Databases - Single database",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "database test"}}
+            ],
+            "databases": ["US-PGPUB"]
+        },
+        "expected_display_query": "(database ADJ test)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28database%20ADJ%20test%29&db=US-PGPUB&type=queryString"
+    },
+    {
+        "description": "TC43: Type parameter - QueryString for non-PN sole condition",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "sole condition"}}
+            ]
+        },
+        "expected_display_query": "(sole ADJ condition)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28sole%20ADJ%20condition%29&type=queryString"
+    },
+    {
+        "description": "TC44: TEXT - WITH operator",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "user interface", "field": "AB", "multi_word_op": "WITH"}}
+            ]
+        },
+        "expected_display_query": "(user WITH interface).ab.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28user%20WITH%20interface%29.ab.&type=queryString"
+    },
+    {
+        "description": "TC45: TEXT - SAME operator",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "data processing", "field": "SPEC", "multi_word_op": "SAME"}}
+            ]
+        },
+        "expected_display_query": "(data SAME processing).spec.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28data%20SAME%20processing%29.spec.&type=queryString"
+    },
+    {
+        "description": "TC46: TEXT - User input with existing parentheses, field ALL",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "(cat OR dog)", "field": "ALL"}}
+            ]
+        },
+        "expected_display_query": "(cat OR dog)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28cat%20OR%20dog%29&type=queryString"
+    },
+    {
+        "description": "TC47: TEXT - User input with existing parentheses, specific field",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "(cat OR dog)", "field": "TI"}}
+            ]
+        },
+        "expected_display_query": "(cat OR dog).ti.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28cat%20OR%20dog%29.ti.&type=queryString"
+    },
+    {
+        "description": "TC48: PATENT_NUMBERS - Numbers with kind codes, type=ids",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["US9876543B2", "US20220123456A1"]}}
+            ]
+        },
+        "expected_display_query": "(US9876543B2|US20220123456A1).pn.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28US9876543B2%7CUS20220123456A1%29.pn.&type=ids"
+    },
+    {
+        "description": "TC49: PATENT_NUMBERS - Already field-coded numbers mixed with simple numbers",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["123.pn.", "456.app.", "789"]}}
+            ]
+        },
+        "expected_display_query": "(123.pn.) OR (456.app.) OR ((789).pn.)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28123.pn.%29%20OR%20%28456.app.%29%20OR%20%28%28789%29.pn.%29&type=ids"
+    },
+    {
+        "description": "TC50: Three conditions ANDed together",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "AI", "field": "TI"}},
+                {"type": "CLASSIFICATION", "data": {"value": "G06N3/08", "class_type": "CPC"}},
+                {"type": "ASSIGNEE", "data": {"name": "Google"}}
+            ],
+            "combine_conditions_with": "AND"
+        },
+        "expected_display_query": "(AI.ti.) AND (G06N3/08.cpc.) AND (Google.as.)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28AI.ti.%29%20AND%20%28G06N3%2F08.cpc.%29%20AND%20%28Google.as.%29&type=queryString"
+    },
+    {
+        "description": "TC51: Date field - Patent Year (PY)",
+        "input": {
+            "conditions": [
+                {"type": "DATE", "data": {"field": "PY", "expression": "<2000"}}
+            ]
+        },
+        "expected_display_query": "@PY<2000",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%40PY%3C2000&type=queryString"
+    },
+    {
+        "description": "TC52: TEXT - Search for a number in default field",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "12345", "field": "ALL"}}
+            ]
+        },
+        "expected_display_query": "12345",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=12345&type=queryString"
+    },
+    {
+        "description": "TC53: TEXT - Search for a number in specific field (e.g. Abstract)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "model 5000", "field": "AB", "multi_word_op": "ADJ"}}
+            ]
+        },
+        "expected_display_query": "(model ADJ 5000).ab.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28model%20ADJ%205000%29.ab.&type=queryString"
+    },
+    {
+        "description": "TC54: TEXT - Field code with numbers (e.g., from a hypothetical custom field)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "custom data", "field": "CF1"}}
+            ]
+        },
+        "expected_display_query": "(custom ADJ data).cf1.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28custom%20ADJ%20data%29.cf1.&type=queryString"
+    },
+    {
+        "description": "TC55: Condition with no data field",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC56: Condition with null data field",
+        "input": {
+            "conditions": [
+                {"type": "ASSIGNEE", "data": null}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html"
+    },
+    {
+        "description": "TC57: TEXT - Search for term that is also an operator (e.g. 'AND')",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "AND", "field": "TI", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "\"AND\".ti.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%22AND%22.ti.&type=queryString"
+    },
+    {
+        "description": "TC58: TEXT - Search for 'OR' as exact text",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "OR gate", "field": "CLMS", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "\"OR gate\".clms.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%22OR%20gate%22.clms.&type=queryString"
+    },
+    {
+        "description": "TC59: TEXT - Search for 'NEAR' as non-exact text",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "NEAR field communication", "field": "AB", "multi_word_op": "ADJ"}}
+            ]
+        },
+        "expected_display_query": "(NEAR ADJ field ADJ communication).ab.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28NEAR%20ADJ%20field%20ADJ%20communication%29.ab.&type=queryString"
+    },
+    {
+        "description": "TC60: Multiple databases, some with spaces to be trimmed",
+        "input": {
+            "conditions": [{"type": "TEXT", "data": {"text": "trim test"}}],
+            "databases": [" USPAT ", "US-PGPUB", " USOCR "]
+        },
+        "expected_display_query": "(trim ADJ test)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28trim%20ADJ%20test%29&db=USPAT%2CUS-PGPUB%2CUSOCR&type=queryString"
+    },
+    {
+        "description": "TC61: Very long query string (conceptual, actual length limits vary by browser/server)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "This is a very long string of text designed to test the handling of potentially lengthy query parameters for patent search interfaces and systems", "field": "SPEC"}}
+            ]
+        },
+        "expected_display_query": "(This ADJ is ADJ a ADJ very ADJ long ADJ string ADJ of ADJ text ADJ designed ADJ to ADJ test ADJ the ADJ handling ADJ of ADJ potentially ADJ lengthy ADJ query ADJ parameters ADJ for ADJ patent ADJ search ADJ interfaces ADJ and ADJ systems).spec.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28This%20ADJ%20is%20ADJ%20a%20ADJ%20very%20ADJ%20long%20ADJ%20string%20ADJ%20of%20ADJ%20text%20ADJ%20designed%20ADJ%20to%20ADJ%20test%20ADJ%20the%20ADJ%20handling%20ADJ%20of%20ADJ%20potentially%20ADJ%20lengthy%20ADJ%20query%20ADJ%20parameters%20ADJ%20for%20ADJ%20patent%20ADJ%20search%20ADJ%20interfaces%20ADJ%20and%20ADJ%20systems%29.spec.&type=queryString"
+    },
+    {
+        "description": "TC62: TEXT - Special characters in text (e.g. $ % &)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "cost is $50 & profit % increase", "field": "ALL"}}
+            ]
+        },
+        "expected_display_query": "(cost ADJ is ADJ $50 ADJ & ADJ profit ADJ % ADJ increase)",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28cost%20ADJ%20is%20ADJ%20%2450%20ADJ%20%26%20ADJ%20profit%20ADJ%20%25%20ADJ%20increase%29&type=queryString"
+    },
+    {
+        "description": "TC63: TEXT - Exact phrase with special characters",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "R&D costs", "field": "ALL", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "\"R&D costs\"",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%22R%26D%20costs%22&type=queryString"
+    },
+    {
+        "description": "TC64: Sole PATENT_NUMBERS condition with an empty number string",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": [""]}}
+            ]
+        },
+        "expected_display_query": "",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html" 
+    },
+    {
+        "description": "TC65: Sole PATENT_NUMBERS condition with mixed empty and valid numbers",
+        "input": {
+            "conditions": [
+                {"type": "PATENT_NUMBERS", "data": {"numbers": ["12345", "", "67890"]}}
+            ]
+        },
+        "expected_display_query": "(12345|67890).pn.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%2812345%7C67890%29.pn.&type=ids"
+    },
+    {
+        "description": "TC66: TEXT - Field 'TTL' (alias for TI)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "alias test", "field": "TTL"}}
+            ]
+        },
+        "expected_display_query": "(alias ADJ test).ttl.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28alias%20ADJ%20test%29.ttl.&type=queryString"
+    },
+    {
+        "description": "TC67: TEXT - Field 'ABST' (alias for AB)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "abstract alias", "field": "ABST"}}
+            ]
+        },
+        "expected_display_query": "(abstract ADJ alias).abst.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28abstract%20ADJ%20alias%29.abst.&type=queryString"
+    },
+    {
+        "description": "TC68: TEXT - Field 'ACLM' (alias for CLMS)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "claim alias", "field": "ACLM"}}
+            ]
+        },
+        "expected_display_query": "(claim ADJ alias).aclm.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28claim%20ADJ%20alias%29.aclm.&type=queryString"
+    },
+    {
+        "description": "TC69: TEXT - Field 'DETD' (alias for SPEC Description/Specification)",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "description alias", "field": "DETD"}}
+            ]
+        },
+        "expected_display_query": "(description ADJ alias).detd.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28description%20ADJ%20alias%29.detd.&type=queryString"
+    },
+    {
+        "description": "TC70: TEXT - User input with mixed case operators",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "cat oR dog anD bird", "field": "ALL"}}
+            ]
+        },
+        "expected_display_query": "cat oR dog anD bird",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=cat%20oR%20dog%20anD%20bird&type=queryString"
+    },
+    {
+        "description": "TC71: TEXT - User input with mixed case operators and specific field",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "cat oR dog anD bird", "field": "TI"}}
+            ]
+        },
+        "expected_display_query": "(cat oR dog anD bird).ti.",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%28cat%20oR%20dog%20anD%20bird%29.ti.&type=queryString"
+    },
+    {
+        "description": "TC72: TEXT - Exact phrase with leading/trailing spaces in input text",
+        "input": {
+            "conditions": [
+                {"type": "TEXT", "data": {"text": "  exact with spaces  ", "field": "ALL", "is_exact": true}}
+            ]
+        },
+        "expected_display_query": "\"exact with spaces\"",
+        "expected_url": "https://ppubs.uspto.gov/pubwebapp/external.html?q=%22exact%20with%20spaces%22&type=queryString"
+    }
+]

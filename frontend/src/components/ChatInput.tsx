@@ -2,197 +2,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PatentFormat } from '../types';
 import {
-    Building2, XCircle, CalendarDays, ChevronDown, Users, Briefcase, Filter,
-    Settings2, Type as TypeIcon, Wand2, Link as LinkIcon, ShieldQuestion, Globe, Check, Languages,
-    FlaskConical, Ruler, Hash, HelpCircle, SlidersHorizontal, Globe2, AlignLeft, ListOrdered
-} from 'lucide-react'; // Added ListOrdered
+    Building2, XCircle, Filter, Settings2, Type as TypeIcon, Wand2, Link as LinkIcon,
+    FlaskConical, Ruler, Hash,
+} from 'lucide-react';
 import SearchToolModal, { ModalToolData } from './SearchToolModal';
+import {
+    SearchCondition, SearchToolType, TextSearchCondition, InternalTextSearchData,
+    PatentOffice, Language, DateType // Added DateType
+} from './searchToolTypes';
 
-// --- Type Definitions ---
-export type DateType = 'priority' | 'filing' | 'publication';
-export type PatentOffice =
-  | 'US' | 'EP' | 'WO' | 'JP' | 'CN' | 'KR' | 'DE' | 'GB' | 'FR' | 'CA'
-  // ... (rest of patent offices)
-  | 'AE' | 'AG' | 'AL' | 'AM' | 'AO' | 'AP' | 'AR' | 'AT' | 'AU' | 'AW'
-  | 'AZ' | 'BA' | 'BB' | 'BD' | 'BE' | 'BF' | 'BG' | 'BH' | 'BJ' | 'BN'
-  | 'BO' | 'BR' | 'BW' | 'BX' | 'BY' | 'BZ' | 'CF' | 'CG' | 'CH' | 'CI'
-  | 'CL' | 'CM' | 'CO' | 'CR' | 'CS' | 'CU' | 'CY' | 'CZ' | 'DD' | 'DJ'
-  | 'DK' | 'DM' | 'DO' | 'DZ' | 'EA' | 'EC' | 'EE' | 'EG' | 'EM' | 'ES'
-  | 'FI' | 'GA' | 'GC' | 'GD' | 'GE' | 'GH' | 'GM' | 'GN' | 'GQ' | 'GR'
-  | 'GT' | 'GW' | 'HK' | 'HN' | 'HR' | 'HU' | 'IB' | 'ID' | 'IE' | 'IL'
-  | 'IN' | 'IR' | 'IS' | 'IT' | 'JO' | 'KE' | 'KG' | 'KH' | 'KM' | 'KN'
-  | 'KP' | 'KW' | 'KZ' | 'LA' | 'LC' | 'LI' | 'LK' | 'LR' | 'LS' | 'LT'
-  | 'LU' | 'LV' | 'LY' | 'MA' | 'MC' | 'MD' | 'ME' | 'MG' | 'MK' | 'ML'
-  | 'MN' | 'MO' | 'MR' | 'MT' | 'MW' | 'MX' | 'MY' | 'MZ' | 'NA' | 'NE'
-  | 'NG' | 'NI' | 'NL' | 'NO' | 'OA' | 'OM' | 'PA' | 'PE' | 'PG' | 'PH'
-  | 'PL' | 'PT' | 'PY' | 'QA' | 'RO' | 'RS' | 'RU' | 'RW' | 'SA' | 'SC'
-  | 'SD' | 'SE' | 'SG' | 'SI' | 'SK' | 'SL' | 'SM' | 'SN' | 'ST' | 'SU'
-  | 'SV' | 'SY' | 'SZ' | 'TD' | 'TG' | 'TH' | 'TJ' | 'TM' | 'TN' | 'TR'
-  | 'TT' | 'TW' | 'TZ' | 'UA' | 'UG' | 'UY' | 'UZ' | 'VC' | 'VE' | 'VN'
-  | 'YU' | 'ZA' | 'ZM' | 'ZW' | 'OTHER' | '';
+import GooglePatentsFields, { GoogleLikeSearchFields } from './googlePatents/GooglePatentsFields';
+import { generateGoogleQuery } from './googlePatents/googleQueryBuilder';
+import UsptoPatentsFields from './usptoPatents/UsptoPatentsFields';
+// Remove USPTO local query builder if fully replaced, or keep for helpers
+// import { generateUsptoQuery, UsptoSpecificSettings } from './usptoPatents/usptoQueryBuilder';
 
 
-export type Language =
-  | 'ENGLISH' | 'GERMAN' | 'CHINESE' | 'FRENCH' | 'SPANISH' | 'ARABIC'
-  // ... (rest of languages)
-  | 'JAPANESE' | 'KOREAN' | 'PORTUGUESE' | 'RUSSIAN' | 'ITALIAN' | 'DUTCH'
-  | 'SWEDISH' | 'FINNISH' | 'NORWEGIAN' | 'DANISH' | '';
-
-export type PatentStatus = 'GRANT' | 'APPLICATION' | '';
-export type PatentType = 'PATENT' | 'DESIGN' | 'PLANT' | 'REISSUE' | 'SIR' | 'UTILITY' | 'PROVISIONAL' | 'DEFENSIVE_PUBLICATION' | 'STATUTORY_INVENTION_REGISTRATION' | 'OTHER' | '';
-export type QueryScope = 'TI' | 'AB' | 'CL' | 'CPC' | 'FT';
-export type TermOperator = 'ALL' | 'EXACT' | 'ANY' | 'NONE';
-export type SearchToolType = 'TEXT' | 'CLASSIFICATION' | 'CHEMISTRY' | 'MEASURE' | 'NUMBERS';
-export type LitigationStatus = 'YES' | 'NO' | '';
-
-export interface BaseSearchCondition { id: string; type: SearchToolType; }
-export interface InternalTextSearchData { text: string; selectedScopes: Set<QueryScope>; termOperator: TermOperator; }
-export interface TextSearchCondition extends BaseSearchCondition { type: 'TEXT'; data: InternalTextSearchData; }
-export interface ClassificationSearchData { cpc: string; option: 'CHILDREN' | 'EXACT'; }
-export interface ClassificationSearchCondition extends BaseSearchCondition { type: 'CLASSIFICATION'; data: ClassificationSearchData; }
-
-export type ChemistryOperator = 'EXACT' | 'SIMILAR' | 'SUBSTRUCTURE' | 'SMARTS';
-export type ChemistryUiOperatorLabel = 'Exact' | 'Exact Batch' | 'Similar' | 'Substructure' | 'Substructure (SMARTS)'; // For UI state
-export type ChemistryDocScope = 'FULL' | 'CLAIMS_ONLY';
-export interface ChemistrySearchData { term: string; operator: ChemistryOperator; uiOperatorLabel: ChemistryUiOperatorLabel; docScope: ChemistryDocScope; }
-export interface ChemistrySearchCondition extends BaseSearchCondition { type: 'CHEMISTRY'; data: ChemistrySearchData; }
-
-export interface MeasureSearchData { measurements: string; units_concepts: string; }
-export interface MeasureSearchCondition extends BaseSearchCondition { type: 'MEASURE'; data: MeasureSearchData; }
-
-export type DocumentNumberType = 'APPLICATION' | 'PUBLICATION' | 'EITHER';
-export interface NumbersSearchData {
-  doc_ids_text: string;
-  number_type: DocumentNumberType;
-  country_restriction: string;
-  preferred_countries_order: string; // New field
-}
-export interface NumbersSearchCondition extends BaseSearchCondition { type: 'NUMBERS'; data: NumbersSearchData; }
-
-export type SearchCondition =
-  | TextSearchCondition
-  | ClassificationSearchCondition
-  | ChemistrySearchCondition
-  | MeasureSearchCondition
-  | NumbersSearchCondition;
-
-export interface BackendSearchConditionPayload {
-  id: string;
-  type: SearchToolType;
-  data: any;
+export interface ChatInputProps {
+  value: string;
+  activeFormat: PatentFormat;
+  onTabChange: (newFormat: PatentFormat) => void;
+  onMainInputChange: (text: string) => void;
 }
 
-export interface GoogleLikeSearchFields { /* ... */ 
-  dateFrom: string; dateTo: string; dateType: DateType;
-  inventors: Array<{ id: string; value: string }>;
-  assignees: Array<{ id: string; value: string }>;
-  patentOffices: PatentOffice[];
-  languages: Language[];
-  status: PatentStatus; patentType: PatentType;
-  litigation: LitigationStatus;
-  cpc?: string;
-  specificTitle?: string; documentId?: string;
-}
-export interface ChatInputProps { value: string; activeFormat: PatentFormat; onTabChange: (newFormat: PatentFormat) => void; onMainInputChange: (text: string) => void; }
+function GoogleGIcon(): React.ReactElement { return (<svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.2446 10.925L12.2446 14.005L18.7746 14.005C18.5346 15.095 18.0546 16.125 17.3446 16.965C16.5846 17.855 15.2746 18.665 13.4846 18.665C10.6846 18.665 8.31462 16.375 8.31462 13.495C8.31462 10.615 10.6846 8.32502 13.4846 8.32502C14.9346 8.32502 16.0046 8.92502 16.9546 9.81502L19.1146 7.71502C17.6746 6.38502 15.8046 5.32502 13.4846 5.32502C9.86462 5.32502 6.91462 8.22502 6.91462 11.995C6.91462 15.765 9.86462 18.665 13.4846 18.665C15.9146 18.665 17.7246 17.835 19.0646 16.415C20.4746 14.925 20.9846 12.925 20.9846 11.495C20.9846 10.925 20.9446 10.475 20.8546 10.005L13.4846 10.005L12.2446 10.925Z" /></svg>);}
 
-// ... (Options Arrays remain the same) ...
-const dateTypeOptions: Array<{value: DateType; label: string}> = [
-    {value: 'publication', label: 'Publication'}, {value: 'priority', label: 'Priority'}, {value: 'filing', label: 'Filing'},
-];
-
-const patentOfficeOptions: Array<{value: PatentOffice; label: string}> = [
-    {value: 'WO', label: 'WO'}, {value: 'US', label: 'US'}, {value: 'EP', label: 'EP'},
-    {value: 'JP', label: 'JP'}, {value: 'KR', label: 'KR'}, {value: 'CN', label: 'CN'},
-    {value: 'AE', label: 'AE'}, {value: 'AG', label: 'AG'}, {value: 'AL', label: 'AL'},
-    {value: 'AM', label: 'AM'}, {value: 'AO', label: 'AO'}, {value: 'AP', label: 'AP'},
-    {value: 'AR', label: 'AR'}, {value: 'AT', label: 'AT'}, {value: 'AU', label: 'AU'},
-    {value: 'AW', label: 'AW'}, {value: 'AZ', label: 'AZ'}, {value: 'BA', label: 'BA'},
-    {value: 'BB', label: 'BB'}, {value: 'BD', label: 'BD'}, {value: 'BE', label: 'BE'},
-    {value: 'BF', label: 'BF'}, {value: 'BG', label: 'BG'}, {value: 'BH', label: 'BH'},
-    {value: 'BJ', label: 'BJ'}, {value: 'BN', label: 'BN'}, {value: 'BO', label: 'BO'},
-    {value: 'BR', label: 'BR'}, {value: 'BW', label: 'BW'}, {value: 'BX', label: 'BX'},
-    {value: 'BY', label: 'BY'}, {value: 'BZ', label: 'BZ'}, {value: 'CA', label: 'CA'},
-    {value: 'CF', label: 'CF'}, {value: 'CG', label: 'CG'}, {value: 'CH', label: 'CH'},
-    {value: 'CI', label: 'CI'}, {value: 'CL', label: 'CL'}, {value: 'CM', label: 'CM'},
-    {value: 'CO', label: 'CO'}, {value: 'CR', label: 'CR'}, {value: 'CS', label: 'CS'},
-    {value: 'CU', label: 'CU'}, {value: 'CY', label: 'CY'}, {value: 'CZ', label: 'CZ'},
-    {value: 'DD', label: 'DD'}, {value: 'DE', label: 'DE'},
-    {value: 'DJ', label: 'DJ'}, {value: 'DK', label: 'DK'}, {value: 'DM', label: 'DM'},
-    {value: 'DO', label: 'DO'}, {value: 'DZ', label: 'DZ'}, {value: 'EA', label: 'EA'},
-    {value: 'EC', label: 'EC'}, {value: 'EE', label: 'EE'}, {value: 'EG', label: 'EG'},
-    {value: 'EM', label: 'EM'}, {value: 'ES', label: 'ES'}, {value: 'FI', label: 'FI'},
-    {value: 'FR', label: 'FR'},
-    {value: 'GA', label: 'GA'}, {value: 'GB', label: 'GB'},
-    {value: 'GC', label: 'GC'}, {value: 'GD', label: 'GD'}, {value: 'GE', label: 'GE'},
-    {value: 'GH', label: 'GH'}, {value: 'GM', label: 'GM'}, {value: 'GN', label: 'GN'},
-    {value: 'GQ', label: 'GQ'}, {value: 'GR', label: 'GR'}, {value: 'GT', label: 'GT'},
-    {value: 'GW', label: 'GW'}, {value: 'HK', label: 'HK'}, {value: 'HN', label: 'HN'},
-    {value: 'HR', label: 'HR'}, {value: 'HU', label: 'HU'}, {value: 'IB', label: 'IB'},
-    {value: 'ID', label: 'ID'}, {value: 'IE', label: 'IE'}, {value: 'IL', label: 'IL'},
-    {value: 'IN', label: 'IN'}, {value: 'IR', label: 'IR'}, {value: 'IS', label: 'IS'},
-    {value: 'IT', label: 'IT'}, {value: 'JO', label: 'JO'}, {value: 'KE', label: 'KE'},
-    {value: 'KG', label: 'KG'}, {value: 'KH', label: 'KH'}, {value: 'KM', label: 'KM'},
-    {value: 'KN', label: 'KN'}, {value: 'KP', label: 'KP'}, {value: 'KW', label: 'KW'},
-    {value: 'KZ', label: 'KZ'}, {value: 'LA', label: 'LA'}, {value: 'LC', label: 'LC'},
-    {value: 'LI', label: 'LI'}, {value: 'LK', label: 'LK'}, {value: 'LR', label: 'LR'},
-    {value: 'LS', label: 'LS'}, {value: 'LT', label: 'LT'}, {value: 'LU', label: 'LU'},
-    {value: 'LV', label: 'LV'}, {value: 'LY', label: 'LY'}, {value: 'MA', label: 'MA'},
-    {value: 'MC', label: 'MC'}, {value: 'MD', label: 'MD'}, {value: 'ME', label: 'ME'},
-    {value: 'MG', label: 'MG'}, {value: 'MK', label: 'MK'}, {value: 'ML', label: 'ML'},
-    {value: 'MN', label: 'MN'}, {value: 'MO', label: 'MO'}, {value: 'MR', label: 'MR'},
-    {value: 'MT', label: 'MT'}, {value: 'MW', label: 'MW'}, {value: 'MX', label: 'MX'},
-    {value: 'MY', label: 'MY'}, {value: 'MZ', label: 'MZ'}, {value: 'NA', label: 'NA'},
-    {value: 'NE', label: 'NE'}, {value: 'NG', label: 'NG'}, {value: 'NI', label: 'NI'},
-    {value: 'NL', label: 'NL'}, {value: 'NO', label: 'NO'}, {value: 'OA', label: 'OA'},
-    {value: 'OM', label: 'OM'}, {value: 'PA', label: 'PA'}, {value: 'PE', label: 'PE'},
-    {value: 'PG', label: 'PG'}, {value: 'PH', label: 'PH'}, {value: 'PL', label: 'PL'},
-    {value: 'PT', label: 'PT'}, {value: 'PY', label: 'PY'}, {value: 'QA', label: 'QA'},
-    {value: 'RO', label: 'RO'}, {value: 'RS', label: 'RS'}, {value: 'RU', label: 'RU'},
-    {value: 'RW', label: 'RW'}, {value: 'SA', label: 'SA'}, {value: 'SC', label: 'SC'},
-    {value: 'SD', label: 'SD'}, {value: 'SE', label: 'SE'}, {value: 'SG', label: 'SG'},
-    {value: 'SI', label: 'SI'}, {value: 'SK', label: 'SK'}, {value: 'SL', label: 'SL'},
-    {value: 'SM', label: 'SM'}, {value: 'SN', label: 'SN'}, {value: 'ST', label: 'ST'},
-    {value: 'SU', label: 'SU'}, {value: 'SV', label: 'SV'}, {value: 'SY', label: 'SY'},
-    {value: 'SZ', label: 'SZ'}, {value: 'TD', label: 'TD'}, {value: 'TG', label: 'TG'},
-    {value: 'TH', label: 'TH'}, {value: 'TJ', label: 'TJ'}, {value: 'TM', label: 'TM'},
-    {value: 'TN', label: 'TN'}, {value: 'TR', label: 'TR'}, {value: 'TT', label: 'TT'},
-    {value: 'TW', label: 'TW'}, {value: 'TZ', label: 'TZ'}, {value: 'UA', label: 'UA'},
-    {value: 'UG', label: 'UG'}, {value: 'UY', label: 'UY'}, {value: 'UZ', label: 'UZ'},
-    {value: 'VC', label: 'VC'}, {value: 'VE', label: 'VE'}, {value: 'VN', label: 'VN'},
-    {value: 'YU', label: 'YU'}, {value: 'ZA', label: 'ZA'}, {value: 'ZM', label: 'ZM'},
-    {value: 'ZW', label: 'ZW'}
-];
-
-const languageOptions: Array<{value: Language; label: string}> = [
-    {value: 'ENGLISH', label: 'English'}, {value: 'GERMAN', label: 'German'},
-    {value: 'CHINESE', label: 'Chinese'}, {value: 'FRENCH', label: 'French'},
-    {value: 'SPANISH', label: 'Spanish'}, {value: 'ARABIC', label: 'Arabic'},
-    {value: 'JAPANESE', label: 'Japanese'}, {value: 'KOREAN', label: 'Korean'},
-    {value: 'PORTUGUESE', label: 'Portuguese'}, {value: 'RUSSIAN', label: 'Russian'},
-    {value: 'ITALIAN', label: 'Italian'}, {value: 'DUTCH', label: 'Dutch'},
-    {value: 'SWEDISH', label: 'Swedish'}, {value: 'FINNISH', label: 'Finnish'},
-    {value: 'NORWEGIAN', label: 'Norwegian'}, {value: 'DANISH', label: 'Danish'}
-];
-
-const patentStatusOptions: Array<{value: PatentStatus; label: string}> = [ {value: '', label: 'Any Status'}, {value: 'GRANT', label: 'Grant'}, {value: 'APPLICATION', label: 'Application'}, ];
-const patentTypeOptions: Array<{value: PatentType; label: string}> = [
-    {value: '', label: 'Any Type'},
-    {value: 'PATENT', label: 'Patent (General/Utility)'}, {value: 'UTILITY', label: 'Utility (Explicit)'},
-    {value: 'DESIGN', label: 'Design'}, {value: 'PLANT', label: 'Plant'},
-    {value: 'REISSUE', label: 'Reissue'}, {value: 'PROVISIONAL', label: 'Provisional'},
-    {value: 'DEFENSIVE_PUBLICATION', label: 'Defensive Publication'},
-    {value: 'STATUTORY_INVENTION_REGISTRATION', label: 'Statutory Invention Registration (SIR)'},
-    {value: 'OTHER', label: 'Other'},
-];
-const litigationStatusOptions: Array<{value: LitigationStatus; label: string}> = [
-    {value: '', label: 'Any Litigation'}, {value: 'YES', label: 'Has Related Litigation'}, {value: 'NO', label: 'No Known Litigation'},
-];
-
-
-function GoogleGIcon(): React.ReactElement { /* ... */ return (<svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.2446 10.925L12.2446 14.005L18.7746 14.005C18.5346 15.095 18.0546 16.125 17.3446 16.965C16.5846 17.855 15.2746 18.665 13.4846 18.665C10.6846 18.665 8.31462 16.375 8.31462 13.495C8.31462 10.615 10.6846 8.32502 13.4846 8.32502C14.9346 8.32502 16.0046 8.92502 16.9546 9.81502L19.1146 7.71502C17.6746 6.38502 15.8046 5.32502 13.4846 5.32502C9.86462 5.32502 6.91462 8.22502 6.91462 11.995C6.91462 15.765 9.86462 18.665 13.4846 18.665C15.9146 18.665 17.7246 17.835 19.0646 16.415C20.4746 14.925 20.9846 12.925 20.9846 11.495C20.9846 10.925 20.9446 10.475 20.8546 10.005L13.4846 10.005L12.2446 10.925Z" /></svg>);}
-function getDateTypeLabel(value: DateType): string { /* ... */ return dateTypeOptions.find(opt => opt.value === value)?.label || 'Select Type';}
-function getLitigationStatusLabel(value: LitigationStatus): string { /* ... */ return litigationStatusOptions.find(opt => opt.value === value)?.label || 'Any Litigation';}
-function getConditionTypeIcon(type: SearchToolType): React.ReactElement { /* ... */ 
+function getConditionTypeIcon(type: SearchToolType): React.ReactElement {
     switch(type) {
         case 'TEXT': return <TypeIcon size={18} className="text-gray-600" />;
         case 'CLASSIFICATION': return <Filter size={18} className="text-gray-600" />;
@@ -200,8 +35,9 @@ function getConditionTypeIcon(type: SearchToolType): React.ReactElement { /* ...
         case 'MEASURE': return <Ruler size={18} className="text-purple-600" />;
         case 'NUMBERS': return <Hash size={18} className="text-teal-600" />;
         default:
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const _exhaustiveCheck: never = type;
-            console.error("Unhandled SearchToolType in getConditionTypeIcon:", _exhaustiveCheck);
+            console.error("Unhandled SearchToolType in getConditionTypeIcon:", type);
             return <Settings2 size={18} className="text-gray-600" />;
     }
 }
@@ -210,6 +46,33 @@ const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactN
   { value: 'google', label: 'Google Patents', icon: <GoogleGIcon /> },
   { value: 'uspto', label: 'USPTO', icon: <Building2 className="h-5 w-5 mr-2" /> },
 ];
+
+// Helper function to map Google-like dateType to USPTO field codes
+const mapDateTypeToUSPTO_local = (dt: DateType): string => {
+    if(dt === 'filing') return 'AD'; // Application Date (USPTO uses AD for app filing date)
+    // if(dt === 'priority') return 'PRD'; // Priority Date (USPTO uses APD for app priority date, less common for general search)
+    // For simplicity, let's map priority to APD (Application Priority Date) if needed, or just use PD/ISD for most common cases.
+    // The backend uspto_generate_query.py uses PD (Publication Date), AD (Application Filing Date), ISD (Issue Date), AY (App Year), PY (Pub Year)
+    // Let's stick to common ones or ensure backend handles PRD if we send it.
+    // For now, 'priority' from Google often means 'earliest priority date'.
+    // USPTO's 'APD' for "Application filing date" seems the closest general one if not specific.
+    // Given the backend's DATE type uses `field` like 'PD', 'AD', 'ISD', 'AY', 'PY', 'PRD'
+    // we can map 'priority' to 'PRD'.
+    if(dt === 'priority') return 'PRD';
+    return 'PD'; // Publication Date (default, or ISD for Issue Date, PD is more general)
+  }
+  
+// Helper function to format YYYY-MM-DD to MM/DD/YYYY for USPTO date expressions
+const formatDateForUSPTO_local = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    if (!year || !month || !day || year.length !== 4 || month.length !== 2 || day.length !== 2) {
+        console.warn(`Invalid date string for USPTO formatting: ${dateStr}`);
+        return ''; // Return empty or throw error if strict validation needed
+    }
+    return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
+}
+
 
 const ChatInput: React.FC<ChatInputProps> = ({
   value: mainQueryValue, activeFormat, onTabChange, onMainInputChange,
@@ -243,7 +106,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const patentOfficeRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { /* ... */ 
+  // USPTO Specific State
+  const [usptoDefaultOperator, setUsptoDefaultOperator] = useState<string>('OR');
+  const [usptoHighlights, setUsptoHighlights] = useState<string>('SINGLE_COLOR');
+  const [usptoShowErrors, setUsptoShowErrors] = useState<boolean>(true);
+  const [usptoPlurals, setUsptoPlurals] = useState<boolean>(false);
+  const [usptoBritishEquivalents, setUsptoBritishEquivalents] = useState<boolean>(true);
+  const [usptoSelectedDatabases, setUsptoSelectedDatabases] = useState<string[]>(['US-PGPUB', 'USPAT', 'USOCR']);
+
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (patentOfficeRef.current && !patentOfficeRef.current.contains(event.target as Node)) {
         setIsPatentOfficeDropdownOpen(false);
@@ -258,25 +130,36 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 
   const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLInputElement>) => onMainInputChange(e.target.value);
-  const handleTabClick = (newFormat: PatentFormat) => { if (newFormat !== activeFormat) onTabChange(newFormat); };
-  const handleOpenSearchToolModal = (conditionToEdit: SearchCondition) => { /* ... */ 
+  const handleTabClick = (newFormat: PatentFormat) => {
+    if (newFormat !== activeFormat) {
+      if (newFormat === 'uspto') {
+        const currentFirstCondition = searchConditions[0];
+        if (searchConditions.length > 1 || (currentFirstCondition && currentFirstCondition.type !== 'TEXT')) {
+            const newTextCondition = createDefaultTextCondition();
+            if (currentFirstCondition && currentFirstCondition.type === 'TEXT' && typeof (currentFirstCondition.data as InternalTextSearchData).text === 'string') {
+                newTextCondition.data.text = (currentFirstCondition.data as InternalTextSearchData).text;
+            }
+            setSearchConditions([newTextCondition]);
+        } else if (searchConditions.length === 0) {
+            setSearchConditions([createDefaultTextCondition()]);
+        }
+      }
+      onTabChange(newFormat);
+    }
+  };
+
+  const handleOpenSearchToolModal = (conditionToEdit: SearchCondition) => {
     setEditingCondition(conditionToEdit);
     setIsSearchToolModalOpen(true);
   };
-  const handleCloseSearchToolModal = () => { /* ... */ 
+  const handleCloseSearchToolModal = () => {
     setIsSearchToolModalOpen(false);
     setEditingCondition(undefined);
   };
-  const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => { /* ... */ 
+  const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => {
     setSearchConditions(prev =>
       prev.map(sc => {
         if (sc.id === conditionId) {
-          if (newType === 'TEXT') return { ...sc, type: 'TEXT', data: newData as InternalTextSearchData };
-          if (newType === 'CLASSIFICATION') return { ...sc, type: 'CLASSIFICATION', data: newData as ClassificationSearchData };
-          if (newType === 'CHEMISTRY') return { ...sc, type: 'CHEMISTRY', data: newData as ChemistrySearchData };
-          if (newType === 'MEASURE') return { ...sc, type: 'MEASURE', data: newData as MeasureSearchData };
-          if (newType === 'NUMBERS') return { ...sc, type: 'NUMBERS', data: newData as NumbersSearchData };
-          console.warn(`Updating condition with potentially mismatched type/data. NewType: ${newType}`);
           return { ...sc, type: newType, data: newData as any };
         }
         return sc;
@@ -284,14 +167,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
     );
     handleCloseSearchToolModal();
   };
-  const removeSearchCondition = (id: string) => { /* ... */ 
+
+  const removeSearchCondition = (id: string) => {
     setSearchConditions(prev => {
+        if (activeFormat === 'uspto' && prev.length === 1 && prev[0].id === id && prev[0].type === 'TEXT') {
+            return [{ ...prev[0], data: { ...(prev[0].data as InternalTextSearchData), text: '' } }];
+        }
         let newConditions = prev.filter(sc => sc.id !== id);
-        if (newConditions.length === 0) {
+        if (newConditions.length === 0 && activeFormat !== 'uspto') {
             newConditions = [createDefaultTextCondition()];
-        } else {
+        } else if (newConditions.length === 0 && activeFormat === 'uspto') {
+            newConditions = [createDefaultTextCondition()];
+        }
+        if (activeFormat !== 'uspto' && newConditions.length > 0) {
             const lastCondition = newConditions[newConditions.length - 1];
-            const lastIsFilledText = lastCondition.type === 'TEXT' && lastCondition.data.text.trim() !== '';
+            const lastIsFilledText = lastCondition.type === 'TEXT' && (lastCondition.data as InternalTextSearchData).text.trim() !== '';
             const lastIsNonText = lastCondition.type !== 'TEXT';
             if (lastIsNonText || lastIsFilledText) {
                 newConditions.push(createDefaultTextCondition());
@@ -300,34 +190,41 @@ const ChatInput: React.FC<ChatInputProps> = ({
         return newConditions;
     });
   };
-  const updateSearchConditionText = (id: string, newText: string) => { /* ... */ 
+
+  const updateSearchConditionText = (id: string, newText: string) => {
     setSearchConditions(prevConditions => {
       let updatedConditions = prevConditions.map(sc =>
-        (sc.id === id && sc.type === 'TEXT') ? { ...sc, data: { ...sc.data, text: newText } } : sc
+        (sc.id === id && sc.type === 'TEXT') ? { ...sc, data: { ...(sc.data as InternalTextSearchData), text: newText } } : sc
       );
-      const conditionIndex = updatedConditions.findIndex(sc => sc.id === id);
-      if (conditionIndex === -1) return updatedConditions;
-      
-      const currentCondition = updatedConditions[conditionIndex];
-      if (currentCondition.type === 'TEXT') {
-        const isCurrentTextFilled = currentCondition.data.text.trim() !== '';
-        const isCurrentTextEmpty = currentCondition.data.text.trim() === '';
+      if (activeFormat !== 'uspto') {
+        const conditionIndex = updatedConditions.findIndex(sc => sc.id === id);
+        if (conditionIndex === -1) return updatedConditions;
 
-        if (isCurrentTextFilled && conditionIndex === updatedConditions.length - 1) {
-          updatedConditions.push(createDefaultTextCondition());
+        const currentCondition = updatedConditions[conditionIndex];
+        if (currentCondition.type === 'TEXT') {
+          const textData = currentCondition.data as InternalTextSearchData;
+          const isCurrentTextFilled = textData.text.trim() !== '';
+          const isCurrentTextEmpty = textData.text.trim() === '';
+
+          if (isCurrentTextFilled && conditionIndex === updatedConditions.length - 1) {
+            updatedConditions.push(createDefaultTextCondition());
+          }
+          else if (isCurrentTextEmpty && updatedConditions.length > 1 && conditionIndex < updatedConditions.length - 1) {
+             updatedConditions.splice(conditionIndex, 1);
+          }
         }
-        else if (isCurrentTextEmpty && updatedConditions.length > 1 && conditionIndex < updatedConditions.length - 1) {
-           updatedConditions.splice(conditionIndex, 1);
+        if (updatedConditions.length === 0) {
+          updatedConditions = [createDefaultTextCondition()];
         }
-      }
-      if (updatedConditions.length === 0) {
-        updatedConditions = [createDefaultTextCondition()];
       }
       return updatedConditions;
     });
   };
-  const handleGoogleLikeFieldChange = <K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => { /* ... */ setGoogleLikeFields(prev => ({ ...prev, [field]: value }));};
-  const handlePatentOfficeToggle = (officeCode: PatentOffice) => { /* ... */ 
+
+  const handleGoogleLikeFieldChange = <K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => {
+    setGoogleLikeFields(prev => ({ ...prev, [field]: value }));
+  };
+  const handlePatentOfficeToggle = (officeCode: PatentOffice) => {
     setGoogleLikeFields(prev => {
       const newPatentOffices = prev.patentOffices.includes(officeCode)
         ? prev.patentOffices.filter(po => po !== officeCode)
@@ -335,7 +232,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return { ...prev, patentOffices: newPatentOffices };
     });
   };
-  const handleLanguageToggle = (langCode: Language) => { /* ... */ 
+  const handleLanguageToggle = (langCode: Language) => {
     setGoogleLikeFields(prev => {
         const newLanguages = prev.languages.includes(langCode)
         ? prev.languages.filter(lang => lang !== langCode)
@@ -343,7 +240,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         return {...prev, languages: newLanguages};
     });
   };
-  const addDynamicFieldEntry = (field: 'inventors' | 'assignees') => { /* ... */ 
+  const addDynamicFieldEntry = (field: 'inventors' | 'assignees') => {
     const currentInput = field === 'inventors' ? currentInventorInput : currentAssigneeInput;
     const setCurrentInput = field === 'inventors' ? setCurrentInventorInput : setCurrentAssigneeInput;
     const inputRef = field === 'inventors' ? inventorInputRef : assigneeInputRef;
@@ -352,193 +249,204 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setCurrentInput(''); inputRef.current?.focus();
     }
   };
-  const removeDynamicFieldEntry = (field: 'inventors' | 'assignees', id: string) => { /* ... */ setGoogleLikeFields(prev => ({...prev, [field]: prev[field].filter(entry => entry.id !== id)}));};
-
-  const fetchGoogleQueryDetailsFromServer = async (
-    currentSearchConditions: SearchCondition[],
-    currentGoogleFields: GoogleLikeSearchFields
-  ): Promise<{ queryStringDisplay: string; url: string }> => {
-    const search_conditions_payload: BackendSearchConditionPayload[] = currentSearchConditions
-      .map((condition: SearchCondition) => {
-        let dataForPayload: any;
-
-        switch (condition.type) {
-          case 'TEXT':
-            if (!condition.data.text.trim()) return null;
-            dataForPayload = { ...condition.data, selectedScopes: Array.from(condition.data.selectedScopes) };
-            break;
-          case 'CLASSIFICATION':
-            if (!condition.data.cpc.trim()) return null;
-            dataForPayload = condition.data;
-            break;
-          case 'CHEMISTRY':
-            if (!condition.data.term.trim()) return null;
-            // Send only backend-relevant fields
-            dataForPayload = { 
-                term: condition.data.term, 
-                operator: condition.data.operator, 
-                docScope: condition.data.docScope 
-            };
-            break;
-          case 'MEASURE':
-            if (!condition.data.measurements.trim() && !condition.data.units_concepts.trim()) return null;
-            dataForPayload = {
-                measure_text: `${condition.data.measurements} ${condition.data.units_concepts}`.trim()
-            };
-            break;
-          case 'NUMBERS':
-            if (!condition.data.doc_ids_text.trim()) return null;
-            dataForPayload = {
-                doc_id: condition.data.doc_ids_text, // Keep as doc_id for backend
-                number_type: condition.data.number_type,
-                country_restriction: condition.data.country_restriction,
-                preferred_countries_order: condition.data.preferred_countries_order,
-            };
-            break;
-          default:
-            const _exhaustiveCheck: never = condition;
-            console.error("Unhandled SearchCondition type in fetchGoogleQueryDetailsFromServer:", _exhaustiveCheck);
-            return null;
-        }
-        
-        return { id: condition.id, type: condition.type, data: dataForPayload };
-      })
-      .filter(Boolean) as BackendSearchConditionPayload[];
-
-    const payload = { /* ... */ 
-      structured_search_conditions: search_conditions_payload.length > 0 ? search_conditions_payload : null,
-      inventors: currentGoogleFields.inventors.length > 0 ? currentGoogleFields.inventors.map(inv => inv.value) : null,
-      assignees: currentGoogleFields.assignees.length > 0 ? currentGoogleFields.assignees.map(asg => asg.value) : null,
-      after_date: currentGoogleFields.dateFrom || null,
-      after_date_type: currentGoogleFields.dateFrom ? currentGoogleFields.dateType : null,
-      before_date: currentGoogleFields.dateTo || null,
-      before_date_type: currentGoogleFields.dateTo ? currentGoogleFields.dateType : null,
-      patent_offices: currentGoogleFields.patentOffices.length > 0 ? currentGoogleFields.patentOffices : null,
-      languages: currentGoogleFields.languages.length > 0 ? currentGoogleFields.languages : null,
-      status: currentGoogleFields.status || null,
-      patent_type: currentGoogleFields.patentType || null,
-      litigation: currentGoogleFields.litigation || null,
-      dedicated_cpc: currentGoogleFields.cpc?.trim() || null,
-      dedicated_title: currentGoogleFields.specificTitle?.trim() || null,
-      dedicated_document_id: currentGoogleFields.documentId?.trim() || null,
-    };
-    try { /* ... */ 
-      const response = await fetch('/api/generate-google-query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-      return {
-        queryStringDisplay: result.query_string_display || '',
-        url: result.url || '#',
-      };
-    } catch (error) {
-        console.error("Failed to fetch Google query details:", error);
-        const errorMessage = error instanceof Error ? error.message : "Error generating query from server.";
-        return { queryStringDisplay: errorMessage, url: "#" };
-    }
+  const removeDynamicFieldEntry = (field: 'inventors' | 'assignees', id: string) => {
+    setGoogleLikeFields(prev => ({...prev, [field]: prev[field].filter(entry => entry.id !== id)}));
   };
 
-  const assembleQuery = React.useCallback(async (formatToUse: PatentFormat = activeFormat) => { /* ... */ 
+
+  const assembleQuery = React.useCallback(async (formatToUse: PatentFormat = activeFormat) => {
+    let queryResult = { queryStringDisplay: '', url: '#' };
     if (formatToUse === 'google') {
-      const { queryStringDisplay, url } = await fetchGoogleQueryDetailsFromServer(searchConditions, googleLikeFields);
-      onMainInputChange(queryStringDisplay);
-      setQueryLinkHref(queryStringDisplay.trim() && !queryStringDisplay.startsWith("Error") && url !=='#' ? url : '#');
+      queryResult = await generateGoogleQuery(searchConditions, googleLikeFields);
     } else if (formatToUse === 'uspto') {
-      let queryParts: string[] = [];
-      searchConditions.forEach(condition => {
-        if (condition.type === 'TEXT') {
-          const textData = condition.data;
-          if (!textData.text.trim()) return;
-          const terms = textData.text.trim().split(/\s+/).filter(Boolean);
-          if (terms.length === 0) return;
-          let processedTerms: string;
-          switch (textData.termOperator) {
-            case 'EXACT': processedTerms = `"${terms.join(' ')}"`; break;
-            case 'ANY': processedTerms = terms.length > 1 ? `(${terms.map(t=> t.includes(" ") ? `"${t}"`: t).join(' OR ')})` : (terms[0].includes(" ") ? `"${terms[0]}"`: terms[0]); break;
-            case 'NONE': processedTerms = terms.length > 1 ? `NOT (${terms.map(t => t.includes(" ") ? `"${t}"`: t).join(' OR ')})` : `NOT ${terms[0].includes(" ") ? `"${terms[0]}"`: terms[0]}`; break;
-            default: processedTerms = terms.length > 1 ? `(${terms.map(t => t.includes(" ") ? `"${t}"`: t).join(' AND ')})` : (terms[0].includes(" ") ? `"${terms[0]}"`: terms[0]); break;
-          }
-          let fieldSpecificQueryParts: string[] = [];
-          if (textData.selectedScopes.has('FT') || textData.selectedScopes.size === 0) {
-            fieldSpecificQueryParts.push(processedTerms);
-          } else {
-            textData.selectedScopes.forEach(scope => {
-              if (scope === 'TI') fieldSpecificQueryParts.push(`TTL/(${processedTerms})`);
-              else if (scope === 'AB') fieldSpecificQueryParts.push(`ABST/(${processedTerms})`);
-              else if (scope === 'CL') fieldSpecificQueryParts.push(`ACLM/(${processedTerms})`);
-              else if (scope === 'CPC') fieldSpecificQueryParts.push(`CPC/${processedTerms.replace(/[()]/g, '')}`);
+        const backendApiConditions: any[] = [];
+
+        const usptoSearchText = searchConditions.length > 0 && searchConditions[0].type === 'TEXT'
+                                ? (searchConditions[0].data as InternalTextSearchData).text
+                                : '';
+
+        if (usptoSearchText.trim()) {
+            backendApiConditions.push({
+            type: 'TEXT',
+            data: {
+                text: usptoSearchText.trim(),
+                field: 'ALL', // User can embed field codes like TTL/ in the text
+                multi_word_op: usptoDefaultOperator,
+                is_exact: false // Python script handles quotes if user provides them
+            }
             });
-          }
-          if (fieldSpecificQueryParts.length > 0) queryParts.push(fieldSpecificQueryParts.length > 1 ? `(${fieldSpecificQueryParts.join(' OR ')})` : fieldSpecificQueryParts[0]);
-        } else if (condition.type === 'CLASSIFICATION') {
-          const { cpc } = condition.data;
-          if (cpc && cpc.trim()) queryParts.push(`CPC/${cpc.trim()}`);
-        } else if (condition.type === 'NUMBERS') {
-            const firstNumber = condition.data.doc_ids_text.split('\n')[0].trim();
-            if (firstNumber) queryParts.push(`PN/${firstNumber.replace(/patent\//i, '')}`);
         }
-      });
-      const mapDateTypeToUSPTO = (dt: DateType) => { if(dt === 'filing') return 'APD'; if(dt === 'priority') return 'PRD'; return 'ISD'; }
-      const usptoDateType = mapDateTypeToUSPTO(googleLikeFields.dateType);
-      const formatDateForUSPTO = (dateStr: string) => { if (!dateStr) return ''; const [year, month, day] = dateStr.split('-'); return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`; }
-      if (googleLikeFields.dateFrom) queryParts.push(`${usptoDateType}/>${formatDateForUSPTO(googleLikeFields.dateFrom)}`);
-      if (googleLikeFields.dateTo) queryParts.push(`${usptoDateType}/<${formatDateForUSPTO(googleLikeFields.dateTo)}`);
-      if (googleLikeFields.inventors.length > 0) { const invQuery = googleLikeFields.inventors.map(inv => `"${inv.value.trim()}"`).join(' OR '); queryParts.push(`IN/(${invQuery})`); }
-      if (googleLikeFields.assignees.length > 0) { const asgQuery = googleLikeFields.assignees.map(asg => `"${asg.value.trim()}"`).join(' OR '); queryParts.push(`AN/(${asgQuery})`); }
-      if (googleLikeFields.cpc?.trim()) queryParts.push(`CPC/${googleLikeFields.cpc.trim()}`);
-      if (googleLikeFields.specificTitle?.trim()) queryParts.push(`TTL/("${googleLikeFields.specificTitle.trim()}")`);
-      if (googleLikeFields.documentId?.trim()) queryParts.push(`PN/("${googleLikeFields.documentId.trim().replace(/patent\//i, '')}")`);
-      const assembled = queryParts.filter(Boolean).join(' AND ').trim();
-      onMainInputChange(assembled);
-      if (assembled.trim()) {
-        setQueryLinkHref(`https://ppubs.uspto.gov/pubwebapp/static/pages/ppubsbasic.html?query=${encodeURIComponent(assembled)}`);
-      } else {
-        setQueryLinkHref('#');
-      }
-    } else {
-      onMainInputChange('');
-      setQueryLinkHref('#');
+
+        if (googleLikeFields.inventors.length > 0) {
+            googleLikeFields.inventors.forEach(inv => {
+            if (inv.value.trim()) {
+                backendApiConditions.push({
+                type: 'INVENTOR',
+                data: { name: inv.value.trim(), multi_word_op: 'ADJ' }
+                });
+            }
+            });
+        }
+
+        if (googleLikeFields.assignees.length > 0) {
+            googleLikeFields.assignees.forEach(asg => {
+            if (asg.value.trim()) {
+                backendApiConditions.push({
+                type: 'ASSIGNEE',
+                data: { name: asg.value.trim(), multi_word_op: 'ADJ' }
+                });
+            }
+            });
+        }
+        
+        if (googleLikeFields.dateFrom) {
+            const formattedDate = formatDateForUSPTO_local(googleLikeFields.dateFrom);
+            if (formattedDate) {
+                backendApiConditions.push({
+                type: 'DATE',
+                data: {
+                    field: mapDateTypeToUSPTO_local(googleLikeFields.dateType),
+                    expression: `>=${formattedDate}`
+                }
+                });
+            }
+        }
+        if (googleLikeFields.dateTo) {
+            const formattedDate = formatDateForUSPTO_local(googleLikeFields.dateTo);
+            if (formattedDate) {
+                backendApiConditions.push({
+                type: 'DATE',
+                data: {
+                    field: mapDateTypeToUSPTO_local(googleLikeFields.dateType),
+                    expression: `<=${formattedDate}`
+                }
+                });
+            }
+        }
+
+        if (googleLikeFields.cpc?.trim()) {
+            backendApiConditions.push({
+            type: 'CLASSIFICATION',
+            data: { value: googleLikeFields.cpc.trim(), class_type: 'CPC' }
+            });
+        }
+
+        if (googleLikeFields.specificTitle?.trim()) {
+            backendApiConditions.push({
+            type: 'TEXT', // Using TEXT type with TI field for title
+            data: {
+                text: googleLikeFields.specificTitle.trim(),
+                field: 'TI', // Or 'TTL' if backend prefers
+                is_exact: true, // Typically titles are searched as exact phrases
+                multi_word_op: 'ADJ'
+            }
+            });
+        }
+
+        if (googleLikeFields.documentId?.trim()) {
+             // Backend Python script's DOCUMENT_ID type adds .did.
+            backendApiConditions.push({
+                type: 'DOCUMENT_ID',
+                data: { doc_id: googleLikeFields.documentId.trim().replace(/patent\//i, '') }
+            });
+        }
+
+        // Prepare payload for the backend
+        const payload = {
+            conditions: backendApiConditions.filter(c => c && c.data && (c.data.text || c.data.name || c.data.value || c.data.expression || c.data.doc_id)),
+            databases: usptoSelectedDatabases,
+            combine_conditions_with: 'AND' // Default, as different fields are usually ANDed
+        };
+        
+        try {
+            const response = await fetch('/api/generate-uspto-query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+                console.error("USPTO Query Generation Error:", errorData);
+                queryResult = { queryStringDisplay: errorData.error || `Error: ${response.statusText}`, url: '#' };
+            } else {
+                const result = await response.json();
+                queryResult = { queryStringDisplay: result.query_string_display || '', url: result.url || '#' };
+            }
+        } catch (error) {
+            console.error("Failed to fetch USPTO query:", error);
+            queryResult = { queryStringDisplay: error instanceof Error ? error.message : "Network error for USPTO query", url: "#" };
+        }
     }
-  }, [activeFormat, searchConditions, googleLikeFields, onMainInputChange]);
+    onMainInputChange(queryResult.queryStringDisplay);
+    const isValidQuery = queryResult.queryStringDisplay.trim() &&
+                         !queryResult.queryStringDisplay.startsWith("Error") &&
+                         queryResult.url !== '#';
+    setQueryLinkHref(isValidQuery ? queryResult.url : '#');
+  }, [activeFormat, searchConditions, googleLikeFields, onMainInputChange,
+      usptoDefaultOperator, /* usptoPlurals, usptoBritishEquivalents, */ usptoSelectedDatabases]); // Removed plurals/british from deps as backend doesn't use them yet for SET commands
 
-  useEffect(() => { /* ... */ assembleQuery(activeFormat);}, [activeFormat, searchConditions, googleLikeFields, assembleQuery]);
+  useEffect(() => {
+    if (activeFormat === 'uspto') {
+        if (searchConditions.length === 0 || searchConditions[0].type !== 'TEXT') {
+            setSearchConditions([createDefaultTextCondition()]);
+        } else if (searchConditions.length > 1) {
+            setSearchConditions([searchConditions[0]]);
+        }
+    }
+    assembleQuery(activeFormat);
+}, [activeFormat, searchConditions, googleLikeFields, assembleQuery,
+    usptoDefaultOperator, usptoPlurals, usptoBritishEquivalents, usptoSelectedDatabases]);
 
-  const renderSearchConditionRow = (condition: SearchCondition, isForNewEntryPlaceholder: boolean, canBeRemoved: boolean): React.ReactNode => { /* ... */ 
+  const renderSearchConditionRow = (condition: SearchCondition, isForNewEntryPlaceholder: boolean, canBeRemoved: boolean): React.ReactNode => {
     if (condition.type === 'TEXT') {
-      const textData = condition.data;
+      const textData = condition.data as InternalTextSearchData;
+      const isUsptoActive = activeFormat === 'uspto';
+      const inputClassName = `w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none ${isUsptoActive ? 'min-h-[160px] resize-y align-top' : ''}`;
+      const placeholderText = isUsptoActive
+        ? "Enter query text (e.g., electric motor OR TTL/(hybrid vehicle) AND APD/>=1/1/2020)"
+        : (isForNewEntryPlaceholder ? "Type here to add search term..." : "Enter search terms...");
+
+      if (isUsptoActive) {
+        return (
+            <textarea
+                value={textData.text}
+                onChange={(e) => updateSearchConditionText(condition.id, e.target.value)}
+                placeholder={placeholderText}
+                className={inputClassName}
+                rows={5}
+            />
+        );
+      }
       return (
         <div className="flex items-center w-full">
-          <input type="text" value={textData.text} onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} placeholder={isForNewEntryPlaceholder ? "Type here to add search term..." : "Enter search terms..."} className="flex-grow p-2 border-none focus:ring-0 text-sm bg-transparent outline-none"/>
+          <input
+            type="text"
+            value={textData.text}
+            onChange={(e) => updateSearchConditionText(condition.id, e.target.value)}
+            placeholder={placeholderText}
+            className={inputClassName}
+          />
           {canBeRemoved && (<button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button>)}
         </div>
       );
     }
-    let displayText = `${condition.type.charAt(0).toUpperCase() + condition.type.slice(1).toLowerCase()}: Click tool icon to configure`;
-    
-    switch (condition.type) {
+
+    let displayText = `${condition.type.charAt(0).toUpperCase() + condition.type.slice(1).toLowerCase()}: `;
+     switch (condition.type) {
         case 'CLASSIFICATION':
             const cpcData = condition.data;
-            let specificDataText = "";
-            if (activeFormat === 'google') { specificDataText = `cpc:${cpcData.cpc.trim().replace(/\//g, '')}`; }
-            else { specificDataText = `CPC/${cpcData.cpc.trim()}`; }
-            specificDataText += ` (${cpcData.option === 'CHILDREN' ? 'incl. children' : 'exact'})`;
-            displayText = specificDataText;
+            displayText += `${cpcData.cpc || "N/A"} (${cpcData.option === 'CHILDREN' ? 'incl. children' : 'exact'})`;
             break;
         case 'CHEMISTRY':
             const chemData = condition.data;
-            displayText = `Chemistry: ${chemData.term ? `"${chemData.term}"` : "N/A"} (${chemData.uiOperatorLabel}, ${chemData.docScope})`;
+            displayText += `${chemData.term ? `"${chemData.term}"` : "N/A"} (${chemData.uiOperatorLabel}, ${chemData.docScope})`;
             break;
         case 'MEASURE':
             const measureData = condition.data;
             const measurePart = measureData.measurements ? `"${measureData.measurements}"` : "N/A";
             const unitsPart = measureData.units_concepts ? ` for "${measureData.units_concepts}"` : "";
-            displayText = `Measure: ${measurePart}${unitsPart}`;
+            displayText += `${measurePart}${unitsPart}`;
             if (measureData.measurements.trim() === "" && measureData.units_concepts.trim() === "") {
                 displayText = `Measure: N/A`;
             }
@@ -560,11 +468,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
             displayText = numDisplayText;
             break;
         default:
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const _exhaustiveCheck: never = condition;
-            console.error("Unhandled SearchCondition type in renderSearchConditionRow:", _exhaustiveCheck);
-            displayText = "Unknown Condition Type";
+            console.error(`Unhandled SearchCondition type in renderSearchConditionRow (displayText): ${(condition as any).type}`);
+            displayText = `Unknown Tool (${(condition as any).type.toString()}): Click to configure`;
     }
-
     return (
         <div className="flex items-center justify-between w-full">
             <span className="text-sm p-2 flex-grow truncate" title={displayText}>{displayText}</span>
@@ -573,194 +481,185 @@ const ChatInput: React.FC<ChatInputProps> = ({
     );
   };
 
-  interface MultiSelectOption<T extends string> { value: T; label: string; }
-  interface MultiSelectDropdownProps<T extends string> { /* ... */ 
-    label: string;
-    icon: React.ReactNode;
-    options: Array<MultiSelectOption<T>>;
-    selectedValues: T[];
-    onToggle: (value: T) => void;
-    isOpen: boolean;
-    setIsOpen: (isOpen: boolean) => void;
-    dropdownRef: React.RefObject<HTMLDivElement>;
-  }
-
-  function MultiSelectDropdown<T extends string>({ /* ... */ 
-    label, icon, options, selectedValues, onToggle, isOpen, setIsOpen, dropdownRef
-  }: MultiSelectDropdownProps<T>) {
-    const displaySelected = () => {
-      if (selectedValues.length === 0) return `Any ${label}`;
-      if (selectedValues.length <= 2) return selectedValues.map(val => options.find(opt => opt.value === val)?.label || val).join(', ');
-      return `${options.find(opt => opt.value === selectedValues[0])?.label}, ${options.find(opt => opt.value === selectedValues[1])?.label}, +${selectedValues.length - 2}`;
-    };
-
-    return (
-      <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm relative" ref={dropdownRef}>
-        <div
-          className="flex items-center justify-between cursor-pointer group text-sm"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <div className="flex items-center">
-            {icon}
-            <span className="text-gray-700">{label}</span>
-          </div>
-          <div className="flex items-center">
-            <span className="text-gray-900 font-medium mr-1 truncate max-w-[100px] md:max-w-[150px]">
-              {displaySelected()}
-            </span>
-            <ChevronDown className={`h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-          </div>
-        </div>
-
-        {isOpen && (
-          <div className="absolute top-full left-0 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-300 rounded-md shadow-lg z-10 py-1">
-            {options.map(opt => (
-              <div
-                key={opt.value}
-                onClick={() => onToggle(opt.value)}
-                className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-              >
-                <span>{opt.label}</span>
-                {selectedValues.includes(opt.value) && <Check className="h-4 w-4 text-blue-600" />}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* ... (rest of the JSX remains largely the same) ... */}
       <div className="text-center"><h2 className="text-2xl font-semibold text-gray-800">Patent Query Tool</h2></div>
       <div className="flex border-b border-gray-200">
         {formatTabs.map(tab => <button key={tab.value} onClick={() => handleTabClick(tab.value)} className={`flex items-center justify-center px-4 py-3 -mb-px text-sm font-medium focus:outline-none transition-colors duration-150 ${activeFormat === tab.value ? 'border-b-2 border-blue-600 text-blue-600' : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab.icon}{tab.label}</button>)}
       </div>
-      <div className="space-y-1 pt-4">
-        <a
-          href={mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !== '#' ? queryLinkHref : '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`block text-sm font-medium mb-1 text-center ${mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !=='#' ? 'text-blue-600 hover:text-blue-800 hover:underline cursor-pointer' : 'text-gray-700 cursor-default'}`}
-          onClick={(e) => { if (!mainQueryValue.trim() || mainQueryValue.startsWith("Error") || queryLinkHref === '#') e.preventDefault(); }}
-        >
-          Search Query {mainQueryValue.trim() && !mainQueryValue.startsWith("Error") && queryLinkHref !=='#' && <LinkIcon className="inline-block h-3 w-3 ml-1 mb-0.5" />}
-        </a>
-        <input id="mainQueryInput" type="text" value={mainQueryValue} onChange={handleMainQueryDirectInputChange} placeholder={`Assembled query...`} className={`block w-full rounded-lg border bg-slate-50 px-4 py-3 text-slate-800 placeholder-slate-400 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-shadow duration-150 ease-in-out ${mainQueryValue.startsWith("Error") ? 'border-red-500 text-red-700' : ''}`}/>
-      </div>
-      <div className="pt-4 border-t border-gray-200">
-        <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-medium text-gray-700 flex items-center"><Wand2 className="h-5 w-5 mr-2 text-blue-600" />Search Terms</h3>
+
+      {activeFormat !== 'uspto' && ( // Keep this for Google Patents URL
+        <div className="space-y-1 pt-4">
+          <a
+            href={queryLinkHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`block text-sm font-medium mb-1 text-center ${queryLinkHref !== '#' ? 'text-blue-600 hover:text-blue-800 hover:underline cursor-pointer' : 'text-gray-700 cursor-default'}`}
+            onClick={(e) => { if (queryLinkHref === '#') e.preventDefault(); }}
+          >
+            Search Query {queryLinkHref !== '#' && <LinkIcon className="inline-block h-3 w-3 ml-1 mb-0.5" />}
+          </a>
+          <input id="mainQueryInput" type="text" value={mainQueryValue} onChange={handleMainQueryDirectInputChange} placeholder={`Assembled query...`} className={`block w-full rounded-lg border bg-slate-50 px-4 py-3 text-slate-800 placeholder-slate-400 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-shadow duration-150 ease-in-out ${mainQueryValue.startsWith("Error") ? 'border-red-500 text-red-700' : (mainQueryValue.trim() === '' && queryLinkHref === '#' ? 'border-gray-300' : 'border-blue-300')}`}/>
         </div>
-        <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
-          {searchConditions.map((condition, index) => {
+      )}
+
+      <div className="pt-4 border-t border-gray-200">
+        <div className={`mb-3 ${activeFormat === 'uspto' ? 'text-center' : 'flex justify-between items-center'}`}>
+            {activeFormat === 'uspto' ? (
+                <>
+                 <a
+                    href={queryLinkHref} // This will now be set by the backend for USPTO too
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center text-sm font-medium ${queryLinkHref !== '#' ? 'text-blue-600 hover:text-blue-800 hover:underline cursor-pointer' : 'text-gray-500 cursor-default'}`}
+                    onClick={(e) => { if (queryLinkHref === '#') e.preventDefault(); }}
+                    title={queryLinkHref !== '#' ? `Open USPTO Advanced Search with current query` : 'Query not yet valid or assembled for search'}
+                 >
+                    Search Query
+                    {queryLinkHref !== '#' && <LinkIcon className="inline-block h-3 w-3 ml-1.5 mb-0.5" />}
+                 </a>
+                 {/* Display the assembled query string for USPTO as well */}
+                 <input 
+                    id="usptoMainQueryDisplay" 
+                    type="text" 
+                    value={mainQueryValue} 
+                    readOnly 
+                    placeholder="Assembled USPTO query..." 
+                    className={`block w-full rounded-lg border bg-slate-50 px-4 py-3 text-slate-800 placeholder-slate-400 text-sm shadow-sm mt-2 text-center ${mainQueryValue.startsWith("Error") ? 'border-red-500 text-red-700' : (mainQueryValue.trim() === '' && queryLinkHref === '#' ? 'border-gray-300' : 'border-blue-300')}`}
+                 />
+                </>
+            ) : (
+                <h3 className="text-lg font-medium text-gray-700 flex items-center">
+                    <Wand2 className="h-5 w-5 mr-2 text-blue-600" />
+                    Search Terms
+                </h3>
+            )}
+        </div>
+
+        <div className={`p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow ${activeFormat === 'uspto' ? 'min-h-[200px] flex' : ''}`}>
+          {searchConditions.map((condition: SearchCondition, index: number) => {
+            if (activeFormat === 'uspto' && (condition.type !== 'TEXT' || index > 0)) {
+              return null;
+            }
             const isLastCondition = index === searchConditions.length - 1;
             const isTextCondition = condition.type === 'TEXT';
-            const textData = isTextCondition ? condition.data : { text: '' };
-            const isForNewEntryPlaceholder = isLastCondition && isTextCondition && textData.text.trim() === '';
-            
-            const canBeRemoved = searchConditions.length > 1 ||
-                                (condition.type !== 'TEXT') ||
-                                (condition.type === 'TEXT' && (condition.data as InternalTextSearchData).text.trim() !== '');
+            const textData = isTextCondition ? (condition.data as InternalTextSearchData) : { text: '', selectedScopes: new Set(['FT']), termOperator: 'ALL' };
+            const isForNewEntryPlaceholder = activeFormat !== 'uspto' && isLastCondition && isTextCondition && textData.text.trim() === '';
 
+            const canBeRemoved = activeFormat !== 'uspto' && (
+                searchConditions.length > 1 ||
+                (condition.type !== 'TEXT') ||
+                (condition.type === 'TEXT' && textData.text.trim() !== '')
+            );
             return (
-                <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-stretch">
-                <div className="flex-grow min-w-0 border-r border-gray-300">
-                    {renderSearchConditionRow(condition, isForNewEntryPlaceholder, canBeRemoved)}
-                </div>
-                <button onClick={() => handleOpenSearchToolModal(condition)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-r-md flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0" title={`Change tool type (current: ${condition.type})`} style={{ minWidth: '40px' }}>
-                    {getConditionTypeIcon(condition.type)}
-                </button>
+                <div key={condition.id} className={`border border-gray-300 rounded-md bg-white shadow-sm flex items-stretch ${activeFormat === 'uspto' ? 'flex-grow' : ''}`}>
+                  <div className={`flex-grow min-w-0 ${activeFormat !== 'uspto' ? 'border-r border-gray-300' : ''} ${activeFormat === 'uspto' ? 'w-full' : ''}`}>
+                      {renderSearchConditionRow(condition, isForNewEntryPlaceholder, canBeRemoved)}
+                  </div>
+                  {activeFormat !== 'uspto' && (
+                    <button
+                        onClick={() => handleOpenSearchToolModal(condition)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-r-md flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0"
+                        title={`Change tool type (current: ${condition.type})`}
+                        style={{ minWidth: '40px' }}
+                    >
+                        {getConditionTypeIcon(condition.type)}
+                    </button>
+                  )}
                 </div>
             );
           })}
         </div>
       </div>
       <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-lg font-medium text-gray-700 mb-3">Search Fields</h3>
-        <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
-            {/* ... Search Fields JSX ... */}
-             <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm space-y-2">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center"><CalendarDays className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" /><span className="text-sm font-medium text-gray-700">Date</span></div>
-                    <div className="relative group flex-shrink-0" style={{minWidth: '150px'}}>
-                        <div className="inline-flex items-center justify-end cursor-pointer p-1.5 rounded-md hover:bg-gray-100 w-full border border-gray-300 shadow-sm bg-white"><span className="text-sm text-gray-700 mr-1 truncate">{getDateTypeLabel(googleLikeFields.dateType)}</span><ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600 ml-auto" /></div>
-                        <select value={googleLikeFields.dateType} onChange={e => handleGoogleLikeFieldChange('dateType', e.target.value as DateType)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none" aria-label="Select date type">{dateTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>
-                    </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <input type="date" value={googleLikeFields.dateFrom} onChange={e => handleGoogleLikeFieldChange('dateFrom', e.target.value)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1.5 text-xs" placeholder="From"/>
-                    <span className="text-gray-500 text-sm">–</span>
-                    <input type="date" value={googleLikeFields.dateTo} onChange={e => handleGoogleLikeFieldChange('dateTo', e.target.value)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1.5 text-xs" placeholder="To"/>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm">
-                    <label className="flex items-center text-sm font-medium text-gray-700 mb-1"><Users className="h-5 w-5 text-gray-500 mr-2" />Inventor(s)</label>
-                    <div className="flex flex-wrap gap-x-1.5 gap-y-1 items-center mb-1.5 min-h-[24px]">
-                        {googleLikeFields.inventors.map((inv, index) => (<React.Fragment key={inv.id}>{index > 0 && <span className="text-xs text-gray-400">or</span>}<span className="inline-flex items-center py-0.5 pl-2 pr-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">{inv.value}<button onClick={() => removeDynamicFieldEntry('inventors', inv.id)} className="ml-1 flex-shrink-0 text-blue-400 hover:text-blue-600 focus:outline-none"><XCircle className="h-3.5 w-3.5" /></button></span></React.Fragment>))}
-                    </div>
-                    <input ref={inventorInputRef} type="text" value={currentInventorInput} onChange={e => setCurrentInventorInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDynamicFieldEntry('inventors');}}} onBlur={() => {if(currentInventorInput.trim()) addDynamicFieldEntry('inventors');}} placeholder="+ Inventor" className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1.5 text-xs"/>
-                </div>
-                <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm">
-                    <label className="flex items-center text-sm font-medium text-gray-700 mb-1"><Briefcase className="h-5 w-5 text-gray-500 mr-2" />Assignee(s)</label>
-                    <div className="flex flex-wrap gap-x-1.5 gap-y-1 items-center mb-1.5 min-h-[24px]">
-                        {googleLikeFields.assignees.map((asg, index) => (<React.Fragment key={asg.id}>{index > 0 && <span className="text-xs text-gray-400">or</span>}<span className="inline-flex items-center py-0.5 pl-2 pr-1 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">{asg.value}<button onClick={() => removeDynamicFieldEntry('assignees', asg.id)} className="ml-1 flex-shrink-0 text-green-400 hover:text-green-600 focus:outline-none"><XCircle className="h-3.5 w-3.5" /></button></span></React.Fragment>))}
-                    </div>
-                    <input ref={assigneeInputRef} type="text" value={currentAssigneeInput} onChange={e => setCurrentAssigneeInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDynamicFieldEntry('assignees');}}} onBlur={() => {if(currentAssigneeInput.trim()) addDynamicFieldEntry('assignees');}} placeholder="+ Assignee" className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1.5 text-xs"/>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <MultiSelectDropdown
-                    label="Patent Office(s)"
-                    icon={<Globe className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" />}
-                    options={patentOfficeOptions}
-                    selectedValues={googleLikeFields.patentOffices}
-                    onToggle={handlePatentOfficeToggle}
-                    isOpen={isPatentOfficeDropdownOpen}
-                    setIsOpen={setIsPatentOfficeDropdownOpen}
-                    dropdownRef={patentOfficeRef}
-                />
-                <MultiSelectDropdown
-                    label="Language(s)"
-                    icon={<Languages className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" />}
-                    options={languageOptions}
-                    selectedValues={googleLikeFields.languages}
-                    onToggle={handleLanguageToggle}
-                    isOpen={isLanguageDropdownOpen}
-                    setIsOpen={setIsLanguageDropdownOpen}
-                    dropdownRef={languageRef}
-                />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm flex items-center justify-between cursor-pointer group relative text-sm" onClick={() => (document.getElementById(`statusSelect`) as HTMLSelectElement)?.focus()}>
-                    <div className="flex items-center"><Filter size={18} className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" /><span className="text-gray-700">Status</span></div>
-                    <div className="flex items-center"><span className="text-gray-900 font-medium mr-1 truncate max-w-[100px] md:max-w-[150px]">{patentStatusOptions.find(opt => opt.value === googleLikeFields.status)?.label || `Any`}</span><ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600" /></div>
-                    <select id={`statusSelect`} value={googleLikeFields.status} onChange={e => handleGoogleLikeFieldChange('status', e.target.value as PatentStatus)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none">{patentStatusOptions.map(opt => <option key={opt.value || `any-status`} value={opt.value}>{opt.label}</option>)}</select>
-                </div>
-                <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm flex items-center justify-between cursor-pointer group relative text-sm" onClick={() => (document.getElementById(`patentTypeSelect`) as HTMLSelectElement)?.focus()}>
-                    <div className="flex items-center"><TypeIcon size={18} className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" /><span className="text-gray-700">Type</span></div>
-                    <div className="flex items-center"><span className="text-gray-900 font-medium mr-1 truncate max-w-[100px] md:max-w-[150px]">{patentTypeOptions.find(opt => opt.value === googleLikeFields.patentType)?.label || `Any`}</span><ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600" /></div>
-                    <select id={`patentTypeSelect`} value={googleLikeFields.patentType} onChange={e => handleGoogleLikeFieldChange('patentType', e.target.value as PatentType)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none">{patentTypeOptions.map(opt => <option key={opt.value || `any-type`} value={opt.value}>{opt.label}</option>)}</select>
-                </div>
-            </div>
-            <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm flex items-center justify-between cursor-pointer group relative text-sm" onClick={() => (document.getElementById(`litigationStatusSelect`) as HTMLSelectElement)?.focus()}>
-                <div className="flex items-center"><ShieldQuestion className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0" /><span className="text-gray-700">Litigation Status</span></div>
-                <div className="flex items-center">
-                    <span className="text-gray-900 font-medium mr-1 truncate max-w-[100px] md:max-w-[150px]">
-                        {getLitigationStatusLabel(googleLikeFields.litigation)}
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                </div>
-                <select id={`litigationStatusSelect`} value={googleLikeFields.litigation} onChange={e => handleGoogleLikeFieldChange('litigation', e.target.value as LitigationStatus)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none" aria-label="Select litigation status">
-                    {litigationStatusOptions.map(opt => <option key={opt.value || 'any-litigation'} value={opt.value}>{opt.label}</option>)}
-                </select>
-            </div>
-        </div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">
+            {activeFormat === 'uspto' ? 'Query Settings' : 'Search Fields'}
+        </h3>
+        {activeFormat === 'google' && (
+            <GooglePatentsFields
+                fields={googleLikeFields}
+                onFieldChange={handleGoogleLikeFieldChange}
+                onPatentOfficeToggle={handlePatentOfficeToggle}
+                onLanguageToggle={handleLanguageToggle}
+                onAddDynamicEntry={addDynamicFieldEntry}
+                onRemoveDynamicEntry={removeDynamicFieldEntry}
+                currentInventorInput={currentInventorInput}
+                setCurrentInventorInput={setCurrentInventorInput}
+                currentAssigneeInput={currentAssigneeInput}
+                setCurrentAssigneeInput={setCurrentAssigneeInput}
+                inventorInputRef={inventorInputRef}
+                assigneeInputRef={assigneeInputRef}
+                isPatentOfficeDropdownOpen={isPatentOfficeDropdownOpen}
+                setIsPatentOfficeDropdownOpen={setIsPatentOfficeDropdownOpen}
+                isLanguageDropdownOpen={isLanguageDropdownOpen}
+                setIsLanguageDropdownOpen={setIsLanguageDropdownOpen}
+                patentOfficeRef={patentOfficeRef}
+                languageRef={languageRef}
+            />
+        )}
+        {activeFormat === 'uspto' && (
+            <UsptoPatentsFields
+                defaultOperator={usptoDefaultOperator}
+                setDefaultOperator={setUsptoDefaultOperator}
+                highlights={usptoHighlights}
+                setHighlights={setUsptoHighlights}
+                showErrors={usptoShowErrors}
+                setShowErrors={setUsptoShowErrors}
+                plurals={usptoPlurals}
+                setPlurals={setUsptoPlurals}
+                britishEquivalents={usptoBritishEquivalents}
+                setBritishEquivalents={setUsptoBritishEquivalents}
+                selectedDatabases={usptoSelectedDatabases}
+                setSelectedDatabases={setUsptoSelectedDatabases}
+                onSearch={() => { // This button will now rely on the queryLinkHref from backend
+                    if (queryLinkHref && queryLinkHref !== '#') {
+                        window.open(queryLinkHref, '_blank', 'noopener,noreferrer');
+                    } else {
+                        // Trigger re-assembly if link is not ready
+                        assembleQuery('uspto').then(() => {
+                            // Small delay to allow state update for queryLinkHref
+                            setTimeout(() => {
+                                if (queryLinkHref && queryLinkHref !== '#') {
+                                     window.open(queryLinkHref, '_blank', 'noopener,noreferrer');
+                                } else {
+                                    alert("Query is not ready or is invalid. Please check your inputs.");
+                                }
+                            }, 100);
+                        });
+                        console.log("Query not ready or invalid for USPTO search via button. Attempting to assemble...");
+                    }
+                }}
+                onClear={() => {
+                    if (searchConditions.length > 0 && searchConditions[0].type === 'TEXT') {
+                        updateSearchConditionText(searchConditions[0].id, '');
+                    }
+                    // Clear googleLikeFields as well if they contribute to USPTO query
+                    setGoogleLikeFields({
+                        dateFrom: '', dateTo: '', dateType: 'publication',
+                        inventors: [], assignees: [], patentOffices: [], languages: [],
+                        status: '', patentType: '', litigation: '',
+                        cpc: '', specificTitle: '', documentId: ''
+                    });
+                    setUsptoDefaultOperator('OR');
+                    setUsptoPlurals(false);
+                    setUsptoBritishEquivalents(true);
+                    setUsptoSelectedDatabases(['US-PGPUB', 'USPAT', 'USOCR']);
+                    // assembleQuery('uspto'); // Trigger re-assembly after clear
+                }}
+                onPatentNumberSearch={() => {
+                     // This could set the documentId field and trigger a query re-assembly
+                    const pn = prompt("Enter Patent Number for USPTO search:");
+                    if (pn && pn.trim()) {
+                        setGoogleLikeFields(prev => ({ ...prev, documentId: pn.trim() }));
+                        // assembleQuery('uspto'); // Optionally auto-trigger
+                    }
+                    console.log("USPTO PN Search clicked - ideally sets documentId field.");
+                }}
+            />
+        )}
       </div>
 
-      {isSearchToolModalOpen && editingCondition && (
+      {isSearchToolModalOpen && editingCondition && activeFormat !== 'uspto' && (
         <SearchToolModal
             isOpen={isSearchToolModalOpen}
             onClose={handleCloseSearchToolModal}
