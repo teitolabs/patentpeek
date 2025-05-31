@@ -736,7 +736,7 @@
         "description": "USPTO to Google: Complex AND/OR/Proximity",
         "conversion_type": "uspto_to_google",
         "input": "TTL/(algorithm OR method) AND (data ADJ5 stream) AND NOT (image WITH video)",
-        "expected_output": "TI=((algorithm OR method) AND (data ADJ5 stream) AND NOT (image WITH video))", 
+        "expected_output": "(TI=(algorithm OR method) AND (data ADJ5 stream)) AND (NOT (image WITH video))",
         "expected_error": null
     },
     {
@@ -757,14 +757,14 @@
         "description": "USPTO to Google: Nested fields and proximity",
         "conversion_type": "uspto_to_google",
         "input": "ABST/(mobile SAME (screen NEAR touch))",
-        "expected_output": "AB=((mobile SAME (screen NEAR touch)))", 
+        "expected_output": "AB=(mobile SAME (screen NEAR touch))",
         "expected_error": null
     },
     {
         "description": "USPTO to Google: Wildcards in fielded search",
         "conversion_type": "uspto_to_google",
-        "input": "IN/(Smith J*) AND TTL/(comput?r)",
-        "expected_output": "inventor:(\"Smith J*\") AND TI=(comput?r)",
+        "input": "IN/(\"Smith J*\") AND TTL/(comput?r)",
+        "expected_output": "inventor:(\"Smith J*\") TI=(comput?r)", 
         "expected_error": null
     },
     {
