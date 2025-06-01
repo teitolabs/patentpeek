@@ -302,7 +302,8 @@
         "conversion_type": "uspto_to_google",
         "input": "SET Plural=ON device",
         "expected_output": "device",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {"plural":"ON"}
     },
     {
         "description": "USPTO to Google: End-to-End ADJ N",
@@ -319,10 +320,12 @@
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "OR", "operands": [
                 {"node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                    {"node_type": "TermNode", "value": "A"}, {"node_type": "TermNode", "value": "B"}
+                    {"node_type": "TermNode", "value": "A", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "B", "has_wildcard":false, "is_phrase":false}
                 ]},
                 {"node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                    {"node_type": "TermNode", "value": "C"}, {"node_type": "TermNode", "value": "D"}
+                    {"node_type": "TermNode", "value": "C", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "D", "has_wildcard":false, "is_phrase":false}
                 ]}
             ]
         },
@@ -335,10 +338,12 @@
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "OR", "operands": [
                 {"node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                    {"node_type": "TermNode", "value": "A"}, {"node_type": "TermNode", "value": "B"}
+                    {"node_type": "TermNode", "value": "A", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "B", "has_wildcard":false, "is_phrase":false}
                 ]},
                 {"node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                    {"node_type": "TermNode", "value": "C"}, {"node_type": "TermNode", "value": "D"}
+                    {"node_type": "TermNode", "value": "C", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "D", "has_wildcard":false, "is_phrase":false}
                 ]}
             ]
         },
@@ -351,7 +356,8 @@
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "NOT", "operands": [
                 {"node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                    {"node_type": "TermNode", "value": "A"}, {"node_type": "TermNode", "value": "B"}
+                    {"node_type": "TermNode", "value": "A", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "B", "has_wildcard":false, "is_phrase":false}
                 ]}
             ]
         },
@@ -363,7 +369,8 @@
         "input": "cat XOR dog",
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "XOR", "operands": [
-                {"node_type": "TermNode", "value": "cat"}, {"node_type": "TermNode", "value": "dog"}
+                {"node_type": "TermNode", "value": "cat", "has_wildcard":false, "is_phrase":false}, 
+                {"node_type": "TermNode", "value": "dog", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {}
@@ -374,7 +381,8 @@
         "input": "electric NEAR10 vehicle",
         "expected_output": {
             "node_type": "ProximityOpNode", "operator": "NEAR", "distance": 10, "ordered": false, "scope_unit": null, "terms": [
-                {"node_type": "TermNode", "value": "electric"}, {"node_type": "TermNode", "value": "vehicle"}
+                {"node_type": "TermNode", "value": "electric", "has_wildcard":false, "is_phrase":false}, 
+                {"node_type": "TermNode", "value": "vehicle", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {}
@@ -385,8 +393,9 @@
         "input": "engine WITH control",
         "expected_output": {
             "node_type": "ProximityOpNode", "operator": "WITH", "ordered": false, "scope_unit": "sentence", "terms": [
-                {"node_type": "TermNode", "value": "engine"}, {"node_type": "TermNode", "value": "control"}
-            ]
+                {"node_type": "TermNode", "value": "engine", "has_wildcard":false, "is_phrase":false}, 
+                {"node_type": "TermNode", "value": "control", "has_wildcard":false, "is_phrase":false}
+            ], "distance": null
         },
         "expected_settings": {}
     },
@@ -396,8 +405,9 @@
         "input": "data SAME processing",
         "expected_output": {
             "node_type": "ProximityOpNode", "operator": "SAME", "ordered": false, "scope_unit": "paragraph", "terms": [
-                {"node_type": "TermNode", "value": "data"}, {"node_type": "TermNode", "value": "processing"}
-            ]
+                {"node_type": "TermNode", "value": "data", "has_wildcard":false, "is_phrase":false}, 
+                {"node_type": "TermNode", "value": "processing", "has_wildcard":false, "is_phrase":false}
+            ], "distance": null
         },
         "expected_settings": {}
     },
@@ -407,10 +417,11 @@
         "input": "battery AND lithium ADJ ion",
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                {"node_type": "TermNode", "value": "battery"},
+                {"node_type": "TermNode", "value": "battery", "has_wildcard":false, "is_phrase":false},
                 {"node_type": "ProximityOpNode", "operator": "ADJ", "ordered": true, "terms": [
-                    {"node_type": "TermNode", "value": "lithium"}, {"node_type": "TermNode", "value": "ion"}
-                ]}
+                    {"node_type": "TermNode", "value": "lithium", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "ion", "has_wildcard":false, "is_phrase":false}
+                ], "distance": null, "scope_unit": null}
             ]
         },
         "expected_settings": {}
@@ -422,9 +433,10 @@
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "AND", "operands": [
                  {"node_type": "ProximityOpNode", "operator": "ADJ", "ordered": true, "terms": [
-                    {"node_type": "TermNode", "value": "lithium"}, {"node_type": "TermNode", "value": "ion"}
-                ]},
-                {"node_type": "TermNode", "value": "battery"}
+                    {"node_type": "TermNode", "value": "lithium", "has_wildcard":false, "is_phrase":false}, 
+                    {"node_type": "TermNode", "value": "ion", "has_wildcard":false, "is_phrase":false}
+                ], "distance": null, "scope_unit": null},
+                {"node_type": "TermNode", "value": "battery", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {}
@@ -435,7 +447,7 @@
         "input": "AN/(\"Acme Corp\")",
         "expected_output": {
             "node_type": "FieldedSearchNode", "field_canonical_name": "assignee_name", "system_field_code": "AN", "query": {
-                "node_type": "TermNode", "value": "Acme Corp", "is_phrase": true
+                "node_type": "TermNode", "value": "Acme Corp", "is_phrase": true, "has_wildcard":false
             }
         },
         "expected_settings": {}
@@ -446,7 +458,7 @@
         "input": "APP/(12/345678)", 
         "expected_output": {
             "node_type": "FieldedSearchNode", "field_canonical_name": "application_number", "system_field_code": "APP", "query": {
-                "node_type": "TermNode", "value": "12/345678" 
+                "node_type": "TermNode", "value": "12/345678", "has_wildcard":false, "is_phrase":false
             }
         },
         "expected_settings": {}
@@ -457,7 +469,7 @@
         "input": "PN/1234567",
         "expected_output": {
             "node_type": "FieldedSearchNode", "field_canonical_name": "patent_number", "system_field_code": "PN", "query": {
-                "node_type": "TermNode", "value": "1234567"
+                "node_type": "TermNode", "value": "1234567", "has_wildcard":false, "is_phrase":false
             }
         },
         "expected_settings": {}
@@ -468,7 +480,7 @@
         "input": "DID/(US-12345-A)",
         "expected_output": {
             "node_type": "FieldedSearchNode", "field_canonical_name": "document_id", "system_field_code": "DID", "query": {
-                "node_type": "TermNode", "value": "US-12345-A"
+                "node_type": "TermNode", "value": "US-12345-A", "has_wildcard":false, "is_phrase":false
             }
         },
         "expected_settings": {}
@@ -478,7 +490,7 @@
         "conversion_type": "uspto_to_ast",
         "input": "@AY=2020",
         "expected_output": {
-            "node_type": "DateSearchNode", "field_canonical_name": "application_year", "operator": "=", "date_value": "2020", "system_field_code": "AY"
+            "node_type": "DateSearchNode", "field_canonical_name": "application_year", "operator": "=", "date_value": "2020", "system_field_code": "AY", "date_value2": null
         },
         "expected_settings": {}
     },
@@ -495,21 +507,21 @@
         "description": "USPTO to AST: Term with wildcard ?",
         "conversion_type": "uspto_to_ast",
         "input": "te?t",
-        "expected_output": {"node_type": "TermNode", "value": "te?t", "has_wildcard": true},
+        "expected_output": {"node_type": "TermNode", "value": "te?t", "has_wildcard": true, "is_phrase":false},
         "expected_settings": {}
     },
     {
         "description": "USPTO to AST: Term with wildcard *",
         "conversion_type": "uspto_to_ast",
         "input": "test*",
-        "expected_output": {"node_type": "TermNode", "value": "test*", "has_wildcard": true},
+        "expected_output": {"node_type": "TermNode", "value": "test*", "has_wildcard": true, "is_phrase":false},
         "expected_settings": {}
     },
     {
         "description": "USPTO to AST: Term with wildcard $",
         "conversion_type": "uspto_to_ast",
         "input": "photo$",
-        "expected_output": {"node_type": "TermNode", "value": "photo$", "has_wildcard": true},
+        "expected_output": {"node_type": "TermNode", "value": "photo$", "has_wildcard": true, "is_phrase":false},
         "expected_settings": {}
     },
     {
@@ -519,10 +531,11 @@
         "expected_output": {
             "node_type": "FieldedSearchNode", "field_canonical_name": "title", "system_field_code": "TTL", "query": {
                 "node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                    {"node_type": "TermNode", "value": "A"},
+                    {"node_type": "TermNode", "value": "A", "has_wildcard":false, "is_phrase":false},
                     {"node_type": "ProximityOpNode", "operator": "NEAR", "ordered": false, "terms": [
-                        {"node_type": "TermNode", "value": "B"}, {"node_type": "TermNode", "value": "C"}
-                    ]}
+                        {"node_type": "TermNode", "value": "B", "has_wildcard":false, "is_phrase":false}, 
+                        {"node_type": "TermNode", "value": "C", "has_wildcard":false, "is_phrase":false}
+                    ], "distance": null, "scope_unit": null}
                 ]}
             }
         ,
@@ -532,7 +545,7 @@
         "description": "USPTO to AST: Only SET command",
         "conversion_type": "uspto_to_ast",
         "input": "SET Plural=OFF,BritishEquivalent=OFF",
-        "expected_output": {"node_type": "TermNode", "value": "__EMPTY_AFTER_SET__"},
+        "expected_output": {"node_type": "TermNode", "value": "__EMPTY_AFTER_SET__", "has_wildcard":false, "is_phrase":false},
         "expected_settings": {"plural": "OFF", "britishequivalent": "OFF"}
     },
 
@@ -737,70 +750,80 @@
         "conversion_type": "uspto_to_google",
         "input": "TTL/(algorithm OR method) AND (data ADJ5 stream) AND NOT (image WITH video)",
         "expected_output": "(TI=(algorithm OR method) AND (data ADJ5 stream)) AND (NOT (image WITH video))",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Multiple SET commands and fields",
         "conversion_type": "uspto_to_google",
         "input": "SET Plural=ON,DefaultOperator=OR,BritishEquivalent=ON IN/Doe AN/Acme CPC/G06K9/00",
         "expected_output": "inventor:(Doe) assignee:(Acme) CPC:G06K900",
-        "expected_error": null 
+        "expected_error": null ,
+        "expected_settings": {"plural":"ON", "defaultoperator":"OR", "britishequivalent":"ON"}
     },
     {
         "description": "USPTO to Google: XOR and Date",
         "conversion_type": "uspto_to_google",
         "input": "(cat XOR dog) AND @PD<20200101",
         "expected_output": "(cat XOR dog) before:publication:20200101",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Nested fields and proximity",
         "conversion_type": "uspto_to_google",
         "input": "ABST/(mobile SAME (screen NEAR touch))",
         "expected_output": "AB=(mobile SAME (screen NEAR touch))",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Wildcards in fielded search",
         "conversion_type": "uspto_to_google",
         "input": "IN/(\"Smith J*\") AND TTL/(comput?r)", 
         "expected_output": "inventor:(\"Smith J*\") TI=(comput?r)", 
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Application Year and Patent Number",
         "conversion_type": "uspto_to_google",
         "input": "@AY>=2019 AND PN/10000000",
         "expected_output": "after:filing:20190101 patent_number:(\"10000000\")", 
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Complex date range",
         "conversion_type": "uspto_to_google",
         "input": "@AD>=20180601<=20190531",
         "expected_output": "after:filing:20180601 before:filing:20190531",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Multiple proximity operators",
         "conversion_type": "uspto_to_google",
         "input": "A ADJ B NEAR C WITH D SAME E",
         "expected_output": "(((A ADJ B) NEAR C) WITH D) SAME E", 
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Only a date query",
         "conversion_type": "uspto_to_google",
         "input": "@ISD=20221115",
         "expected_output": "after:publication:20221115 before:publication:20221115",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Empty input string",
         "conversion_type": "uspto_to_google",
         "input": " ",
         "expected_output": "",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     }
 ,
     {
@@ -808,19 +831,19 @@
         "conversion_type": "uspto_to_ast",
         "input": "(engine AND (electric OR hybrid)) NEAR15 vehicle",
         "expected_output": {
-            "node_type": "ProximityOpNode", "operator": "NEAR", "distance": 15, "ordered": false, "terms": [
+            "node_type": "ProximityOpNode", "operator": "NEAR", "distance": 15, "ordered": false, "scope_unit": null, "terms": [
                 {
                     "node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                        {"node_type": "TermNode", "value": "engine"},
+                        {"node_type": "TermNode", "value": "engine", "has_wildcard":false, "is_phrase":false},
                         {
                             "node_type": "BooleanOpNode", "operator": "OR", "operands": [
-                                {"node_type": "TermNode", "value": "electric"},
-                                {"node_type": "TermNode", "value": "hybrid"}
+                                {"node_type": "TermNode", "value": "electric", "has_wildcard":false, "is_phrase":false},
+                                {"node_type": "TermNode", "value": "hybrid", "has_wildcard":false, "is_phrase":false}
                             ]
                         }
                     ]
                 },
-                {"node_type": "TermNode", "value": "vehicle"}
+                {"node_type": "TermNode", "value": "vehicle", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {}
@@ -831,8 +854,8 @@
         "input": "Set Plural=oFf, defaultoperator=AND battery charger",
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                 {"node_type": "TermNode", "value": "battery"},
-                 {"node_type": "TermNode", "value": "charger"}
+                 {"node_type": "TermNode", "value": "battery", "has_wildcard":false, "is_phrase":false},
+                 {"node_type": "TermNode", "value": "charger", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {"plural": "oFf", "defaultoperator": "AND"}
@@ -846,8 +869,8 @@
                 "node_type": "BooleanOpNode", "operator": "NOT", "operands": [
                     {
                         "node_type": "BooleanOpNode", "operator": "OR", "operands": [
-                            {"node_type": "TermNode", "value": "combustion"},
-                            {"node_type": "TermNode", "value": "fossil"}
+                            {"node_type": "TermNode", "value": "combustion", "has_wildcard":false, "is_phrase":false},
+                            {"node_type": "TermNode", "value": "fossil", "has_wildcard":false, "is_phrase":false}
                         ]
                     }
                 ]
@@ -869,9 +892,9 @@
         "conversion_type": "uspto_to_ast",
         "input": "\"solar cell\" ADJ3 \"thin film\"",
         "expected_output": {
-            "node_type": "ProximityOpNode", "operator": "ADJ", "distance": 3, "ordered": true, "terms": [
-                {"node_type": "TermNode", "value": "solar cell", "is_phrase": true},
-                {"node_type": "TermNode", "value": "thin film", "is_phrase": true}
+            "node_type": "ProximityOpNode", "operator": "ADJ", "distance": 3, "ordered": true, "scope_unit": null, "terms": [
+                {"node_type": "TermNode", "value": "solar cell", "is_phrase": true, "has_wildcard":false},
+                {"node_type": "TermNode", "value": "thin film", "is_phrase": true, "has_wildcard":false}
             ]
         },
         "expected_settings": {}
@@ -880,7 +903,7 @@
         "description": "USPTO to AST: Term that is an operator 'AND'",
         "conversion_type": "uspto_to_ast",
         "input": "\"AND\"",
-        "expected_output": {"node_type": "TermNode", "value": "AND", "is_phrase": true},
+        "expected_output": {"node_type": "TermNode", "value": "AND", "is_phrase": true, "has_wildcard":false},
         "expected_settings": {}
     },
     {
@@ -906,7 +929,7 @@
         "input": "CCLS/257/E21.525",
         "expected_output": {
             "node_type": "FieldedSearchNode", "field_canonical_name": "us_classification_ccls", "system_field_code": "CCLS", "query": {
-                 "node_type": "TermNode", "value": "257/E21.525"
+                 "node_type": "TermNode", "value": "257/E21.525", "has_wildcard":false, "is_phrase":false
             }
         },
         "expected_settings": {}
@@ -915,14 +938,14 @@
         "description": "USPTO to AST: Empty query after SET",
         "conversion_type": "uspto_to_ast",
         "input": "SET Plural=ON",
-        "expected_output": {"node_type": "TermNode", "value": "__EMPTY_AFTER_SET__"},
+        "expected_output": {"node_type": "TermNode", "value": "__EMPTY_AFTER_SET__", "has_wildcard":false, "is_phrase":false},
         "expected_settings": {"plural": "ON"}
     },
     {
         "description": "USPTO to AST: Query with only parentheses",
         "conversion_type": "uspto_to_ast",
         "input": "(renewable)",
-        "expected_output": {"node_type": "TermNode", "value": "renewable"},
+        "expected_output": {"node_type": "TermNode", "value": "renewable", "has_wildcard":false, "is_phrase":false},
         "expected_settings": {}
     },
     {
@@ -930,13 +953,14 @@
         "conversion_type": "uspto_to_ast",
         "input": "A ADJ B NEAR C",
         "expected_output": {
-            "node_type": "ProximityOpNode", "operator": "NEAR", "ordered": false, "terms": [
+            "node_type": "ProximityOpNode", "operator": "NEAR", "ordered": false, "scope_unit": null, "distance": null, "terms": [
                 {
-                    "node_type": "ProximityOpNode", "operator": "ADJ", "ordered": true, "terms": [
-                        {"node_type": "TermNode", "value": "A"}, {"node_type": "TermNode", "value": "B"}
+                    "node_type": "ProximityOpNode", "operator": "ADJ", "ordered": true, "scope_unit": null, "distance": null, "terms": [
+                        {"node_type": "TermNode", "value": "A", "has_wildcard":false, "is_phrase":false}, 
+                        {"node_type": "TermNode", "value": "B", "has_wildcard":false, "is_phrase":false}
                     ]
                 },
-                {"node_type": "TermNode", "value": "C"}
+                {"node_type": "TermNode", "value": "C", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {}
@@ -945,7 +969,7 @@
         "description": "USPTO to AST: Wildcard at beginning of term",
         "conversion_type": "uspto_to_ast",
         "input": "*voltaic",
-        "expected_output": {"node_type": "TermNode", "value": "*voltaic", "has_wildcard": true},
+        "expected_output": {"node_type": "TermNode", "value": "*voltaic", "has_wildcard": true, "is_phrase":false},
         "expected_settings": {}
     },
     {
@@ -954,11 +978,11 @@
         "input": "PN/12345 OR AN/\"Big Corp\" AND @PD=20220101",
         "expected_output": {
             "node_type": "BooleanOpNode", "operator": "OR", "operands": [
-                {"node_type": "FieldedSearchNode", "field_canonical_name": "patent_number", "system_field_code": "PN", "query": {"node_type": "TermNode", "value": "12345"}},
+                {"node_type": "FieldedSearchNode", "field_canonical_name": "patent_number", "system_field_code": "PN", "query": {"node_type": "TermNode", "value": "12345", "has_wildcard":false, "is_phrase":false}},
                 {
                     "node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                        {"node_type": "FieldedSearchNode", "field_canonical_name": "assignee_name", "system_field_code": "AN", "query": {"node_type": "TermNode", "value": "Big Corp", "is_phrase": true}},
-                        {"node_type": "DateSearchNode", "field_canonical_name": "publication_date", "operator": "=", "date_value": "20220101", "system_field_code": "PD"}
+                        {"node_type": "FieldedSearchNode", "field_canonical_name": "assignee_name", "system_field_code": "AN", "query": {"node_type": "TermNode", "value": "Big Corp", "is_phrase": true, "has_wildcard":false}},
+                        {"node_type": "DateSearchNode", "field_canonical_name": "publication_date", "operator": "=", "date_value": "20220101", "date_value2": null, "system_field_code": "PD"}
                     ]
                 }
             ]
@@ -973,11 +997,11 @@
             "node_type": "BooleanOpNode", "operator": "OR", "operands": [
                 {
                     "node_type": "BooleanOpNode", "operator": "AND", "operands": [
-                        {"node_type": "TermNode", "value": "deeply"},
-                        {"node_type": "TermNode", "value": "nested"}
+                        {"node_type": "TermNode", "value": "deeply", "has_wildcard":false, "is_phrase":false},
+                        {"node_type": "TermNode", "value": "nested", "has_wildcard":false, "is_phrase":false}
                     ]
                 },
-                {"node_type": "TermNode", "value": "query"}
+                {"node_type": "TermNode", "value": "query", "has_wildcard":false, "is_phrase":false}
             ]
         },
         "expected_settings": {}
@@ -1161,56 +1185,64 @@
         "conversion_type": "uspto_to_google",
         "input": "SET DefaultOperator=OR PN/123 AN/Acme IN/Doe",
         "expected_output": "patent_number:(\"123\") assignee:(Acme) inventor:(Doe)", 
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {"defaultoperator":"OR"}
     },
     {
         "description": "USPTO to Google: Query with only date range",
         "conversion_type": "uspto_to_google",
         "input": "@AY>=2018<=2020",
         "expected_output": "after:filing:20180101 before:filing:20201231",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Fielded search with only wildcard",
         "conversion_type": "uspto_to_google",
         "input": "TTL/(*)", 
         "expected_output": "TI=(*)",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
-        "description": "USPTO to Google: Nested parentheses in fielded search",
+        "description": "USPTO to Google: Nested parentheses in fielded search (SPEC not mapped, content passes through)",
         "conversion_type": "uspto_to_google",
         "input": "SPEC/((method AND (data OR signal)) OR process)",
         "expected_output": "(method AND (data OR signal)) OR process",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Query with term 'adj' not as operator",
         "conversion_type": "uspto_to_google",
         "input": "adjustment OR \"adj sensor\"",
         "expected_output": "adjustment OR \"adj sensor\"",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Issue Date (ISD) field",
         "conversion_type": "uspto_to_google",
         "input": "@ISD=20230315",
         "expected_output": "after:publication:20230315 before:publication:20230315",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Proximity SAME with complex operands",
         "conversion_type": "uspto_to_google",
         "input": "(A OR B) SAME (C AND D)",
         "expected_output": "(A OR B) SAME (C AND D)",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
-        "description": "USPTO to Google: Application number field APP",
+        "description": "USPTO to Google: Application number field APP (unhandled by Google generator)",
         "conversion_type": "uspto_to_google",
         "input": "APP/(\"16/123,456\")",
         "expected_output": null, 
-        "expected_error": "Error generating google query: Error:UnhandledASTNode(FieldedSearchNode)"
+        "expected_error": "Error generating google query: Error:UnhandledASTNode(FieldedSearchNode)",
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Extremely simple SET",
@@ -1225,34 +1257,71 @@
         "conversion_type": "uspto_to_google",
         "input": "NOT standalone",
         "expected_output": "-standalone",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: CCLS field to Google (passes through content)",
         "conversion_type": "uspto_to_google",
         "input": "CCLS/370/230.1",
         "expected_output": "370/230.1", 
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Chained ADJ operators",
         "conversion_type": "uspto_to_google",
         "input": "word1 ADJ word2 ADJ word3",
         "expected_output": "(word1 ADJ word2) ADJ word3",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
     {
         "description": "USPTO to Google: Leading wildcard in phrase",
         "conversion_type": "uspto_to_google",
         "input": "TTL/(\"*leading wildcard phrase\")",
         "expected_output": "TI=(\"*leading wildcard phrase\")",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
     },
-    {
+   {
         "description": "USPTO to Google: Date with slashes",
         "conversion_type": "uspto_to_google",
         "input": "@PD=2022/11/01",
         "expected_output": "after:publication:20221101 before:publication:20221101",
-        "expected_error": null
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Simple term (stub test)",
+        "conversion_type": "google_to_uspto",
+        "input": "solar",
+        "expected_output": null,
+        "expected_error": "Error parsing google query 'solar': __GOOGLE_PARSE_STUB__solar", 
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to AST: Simple term (stub test)",
+        "conversion_type": "google_to_ast",
+        "input": "simple",
+        "expected_output": { 
+            "node_type": "TermNode", 
+            "value": "__GOOGLE_PARSE_STUB__simple", 
+            "is_phrase": false, 
+            "has_wildcard": false
+        },
+        "expected_error": null, 
+        "expected_settings": {}
+    },
+    {
+        "description": "AST to USPTO: Simple term (stub test)",
+        "conversion_type": "ast_to_uspto",
+        "input": {
+            "node_type": "QueryRootNode",
+            "query": {"node_type": "TermNode", "value": "from_ast", "is_phrase": false, "has_wildcard": false},
+            "settings": {}
+        },
+        "expected_output": null,
+        "expected_error": "__USPTO_GENERATE_STUB_FROM_AST__TermNode(value='from_ast', is_phrase=False, has_wildcard=False)"
     }
 ]

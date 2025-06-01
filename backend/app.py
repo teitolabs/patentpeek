@@ -2,11 +2,15 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Import for Google Patents (assuming it's still needed)
+# Import for Google Patents
 from google_generate_query import generate_google_patents_query 
 
 # Import for USPTO Patents
 from uspto_generate_query import generate_uspto_patents_query
+
+# Import for Query Conversion
+# Rename imported function to avoid conflict if 'convert_query' is used elsewhere
+from query_converter import convert_query as execute_conversion 
 
 app = Flask(__name__)
 CORS(app) # Enable CORS for all routes
@@ -64,18 +68,11 @@ def handle_generate_uspto_query():
     data = request.json
     if not data:
         return jsonify({"error": "No data provided for USPTO query"}), 400
-
-    # Extract data for USPTO query
-    # Based on the signature of generate_uspto_patents_query:
-    # conditions (list of dicts)
-    # databases (list of strings)
-    # combine_conditions_with (string, e.g., "AND", "OR")
     
-    conditions = data.get('conditions') # This is the list of structured search conditions
-    databases = data.get('databases')   # e.g., ["USPAT", "US-PGPUB"]
-    combine_conditions_with = data.get('combine_conditions_with', 'AND') # Default to "AND" if not provided
+    conditions = data.get('conditions') 
+    databases = data.get('databases')   
+    combine_conditions_with = data.get('combine_conditions_with', 'AND') 
 
-    # Basic validation (can be expanded)
     if conditions is not None and not isinstance(conditions, list):
         return jsonify({"error": "'conditions' must be a list"}), 400
     if databases is not None and not isinstance(databases, list):
@@ -88,15 +85,50 @@ def handle_generate_uspto_query():
         result = generate_uspto_patents_query(
             conditions=conditions,
             databases=databases,
-            combine_conditions_with=combine_conditions_with.upper() # Ensure it's uppercase
+            combine_conditions_with=combine_conditions_with.upper()
         )
         return jsonify(result)
-    except ValueError as e: # Catch specific ValueErrors if your function raises them
+    except ValueError as e: 
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         app.logger.error(f"Error generating USPTO query: {e}", exc_info=True)
         return jsonify({"error": "An internal server error occurred processing the USPTO query."}), 500
 
+@app.route('/api/convert-query', methods=['POST'])
+def handle_convert_query():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided for conversion"}), 400
+
+    query_string = data.get('query_string')
+    source_format = data.get('source_format')
+    target_format = data.get('target_format')
+
+    # query_string can be empty, handled by execute_conversion
+    if source_format is None: # Check for None explicitly
+        return jsonify({"error": "Missing 'source_format'"}), 400
+    if target_format is None: # Check for None explicitly
+        return jsonify({"error": "Missing 'target_format'"}), 400
+    
+    valid_formats = ["google", "uspto"]
+    if source_format not in valid_formats or target_format not in valid_formats:
+        return jsonify({"error": f"Invalid format. Must be one of {valid_formats}"}), 400
+
+    try:
+        result = execute_conversion(
+            query_string=query_string if query_string is not None else "", # Ensure string
+            source_format=source_format, # type: ignore
+            target_format=target_format # type: ignore
+        )
+        # query_converter.py returns: {"query": output_query, "error": None, "settings": final_settings}
+        return jsonify({
+            "converted_text": result.get("query"),
+            "error": result.get("error"),
+            "settings": result.get("settings") 
+        })
+    except Exception as e:
+        app.logger.error(f"Error during query conversion: {e}", exc_info=True)
+        return jsonify({"error": f"An internal server error occurred during conversion: {str(e)}"}), 500
+
 if __name__ == '__main__':
-    # Ensure debug is False in production
     app.run(debug=True, port=5001)

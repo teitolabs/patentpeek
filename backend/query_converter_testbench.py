@@ -4,10 +4,15 @@ import json
 import os
 import re
 from query_converter import (
-    ASTNode, QueryRootNode,
-    USPTOQueryParser, ASTToGoogleQueryGenerator, # Add other generators as implemented
     convert_query
 )
+# Import ASTNode for from_dict and specific node types if directly checked
+from ast_nodes import ASTNode, QueryRootNode, TermNode
+from uspto_parser import USPTOQueryParser
+from google_generator import ASTToGoogleQueryGenerator
+from google_parser import GoogleQueryParser
+from uspto_generator import ASTToUSPTOQueryGenerator
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_VECTORS_FILE = os.path.join(BASE_DIR, 'query_converter_testvectors.json')
@@ -32,26 +37,42 @@ def create_test_method(test_case_data):
             if conversion_type == "uspto_to_ast":
                 parser = USPTOQueryParser()
                 ast_root = parser.parse(input_data)
-                actual_output = ast_root.query # We compare the main query part of the AST
+                actual_output = ast_root.query
                 actual_settings = ast_root.settings
                 if isinstance(actual_output, ASTNode) and hasattr(actual_output, 'value') and \
                    ("PARSE_ERROR" in actual_output.value or "UNEXPECTED_PARSE_ERROR" in actual_output.value):
                     actual_error = actual_output.value
-                    actual_output = None # Don't compare AST if parse error
+                    actual_output = None
 
             elif conversion_type == "ast_to_google":
-                # Input data is a dict representing QueryRootNode
                 ast_input_root = ASTNode.from_dict(input_data)
                 generator = ASTToGoogleQueryGenerator()
                 actual_output = generator.generate(ast_input_root)
             
-            # Add "ast_to_uspto", "google_to_ast" when implemented
+            elif conversion_type == "google_to_ast": # New type
+                parser = GoogleQueryParser()
+                ast_root = parser.parse(input_data)
+                actual_output = ast_root.query 
+                actual_settings = ast_root.settings
+                if isinstance(actual_output, TermNode) and \
+                   ("__GOOGLE_PARSE_STUB__" in actual_output.value or \
+                    "PARSE_ERROR" in actual_output.value):
+                    actual_error = actual_output.value
+                    actual_output = None
+            
+            elif conversion_type == "ast_to_uspto": # New type
+                ast_input_root = ASTNode.from_dict(input_data)
+                generator = ASTToUSPTOQueryGenerator()
+                actual_output = generator.generate(ast_input_root)
+                if actual_output and "__USPTO_GENERATE_STUB__" in actual_output:
+                    actual_error = actual_output
+                    actual_output = None
             
             elif conversion_type == "uspto_to_google":
                 result = convert_query(input_data, "uspto", "google")
                 actual_output = result["query"]
                 actual_error = result["error"]
-                actual_settings = result["settings"] # convert_query now returns settings
+                actual_settings = result["settings"]
 
             elif conversion_type == "google_to_uspto":
                 result = convert_query(input_data, "google", "uspto")
@@ -70,18 +91,27 @@ def create_test_method(test_case_data):
 
         if expected_error_msg:
             self.assertIsNotNone(actual_error, f"Expected error '{expected_error_msg}' but got no error for: {description}")
-            self.assertIn(expected_error_msg.lower(), actual_error.lower(), f"Error message mismatch for: {description}")
+            # Allow for more flexible error message checking (e.g., stub messages)
+            if "STUB" in expected_error_msg or "STUB" in (actual_error or ""):
+                 self.assertIn(expected_error_msg.lower(), (actual_error or "").lower(), f"Error message mismatch for: {description}")
+            else:
+                 self.assertIn(expected_error_msg.lower(), actual_error.lower(), f"Error message mismatch for: {description}")
+
         else:
             self.assertIsNone(actual_error, f"Unexpected error '{actual_error}' for: {description}")
 
             if conversion_type.endswith("_to_ast"):
-                # Expected output is an AST dict, convert it to ASTNode for comparison
-                expected_ast_node = ASTNode.from_dict(expected_output_data)
-                self.assertEqual(actual_output, expected_ast_node, f"AST mismatch for: {description}\nActual: {actual_output!r}\nExpected: {expected_ast_node!r}")
-                if expected_settings_data is not None:
-                    self.assertEqual(actual_settings, expected_settings_data, f"Settings mismatch for: {description}")
+                if expected_output_data is None and actual_output is None: # For cases where error is expected and output is None
+                    pass
+                else:
+                    expected_ast_node = ASTNode.from_dict(expected_output_data)
+                    self.assertEqual(actual_output, expected_ast_node, f"AST mismatch for: {description}\nActual: {actual_output!r}\nExpected: {expected_ast_node!r}")
             else: # String output
                 self.assertEqual(actual_output, expected_output_data, f"Output string mismatch for: {description}")
+
+            if expected_settings_data is not None: # Check settings if provided in test case
+                 self.assertEqual(actual_settings, expected_settings_data, f"Settings mismatch for: {description}\nActual: {actual_settings}\nExpected: {expected_settings_data}")
+
 
     test_method.__doc__ = description
     return test_method
@@ -95,7 +125,6 @@ if os.path.exists(TEST_VECTORS_FILE):
             sane_desc = re.sub(r'\W|^(?=\d)', '_', tc_data.get("description", f"TestCase_{i}"))
             method_name = f"test_{sane_desc}"
             
-            # Ensure unique method names if descriptions are too similar after sanitizing
             original_method_name = method_name
             count = 0
             while hasattr(TestQueryConverter, method_name):
