@@ -763,7 +763,7 @@
     {
         "description": "USPTO to Google: Wildcards in fielded search",
         "conversion_type": "uspto_to_google",
-        "input": "IN/(\"Smith J*\") AND TTL/(comput?r)",
+        "input": "IN/(\"Smith J*\") AND TTL/(comput?r)", 
         "expected_output": "inventor:(\"Smith J*\") TI=(comput?r)", 
         "expected_error": null
     },
@@ -800,6 +800,459 @@
         "conversion_type": "uspto_to_google",
         "input": " ",
         "expected_output": "",
+        "expected_error": null
+    }
+,
+    {
+        "description": "USPTO to AST: Nested AND/OR with Proximity",
+        "conversion_type": "uspto_to_ast",
+        "input": "(engine AND (electric OR hybrid)) NEAR15 vehicle",
+        "expected_output": {
+            "node_type": "ProximityOpNode", "operator": "NEAR", "distance": 15, "ordered": false, "terms": [
+                {
+                    "node_type": "BooleanOpNode", "operator": "AND", "operands": [
+                        {"node_type": "TermNode", "value": "engine"},
+                        {
+                            "node_type": "BooleanOpNode", "operator": "OR", "operands": [
+                                {"node_type": "TermNode", "value": "electric"},
+                                {"node_type": "TermNode", "value": "hybrid"}
+                            ]
+                        }
+                    ]
+                },
+                {"node_type": "TermNode", "value": "vehicle"}
+            ]
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Multiple SET commands, mixed case",
+        "conversion_type": "uspto_to_ast",
+        "input": "Set Plural=oFf, defaultoperator=AND battery charger",
+        "expected_output": {
+            "node_type": "BooleanOpNode", "operator": "AND", "operands": [
+                 {"node_type": "TermNode", "value": "battery"},
+                 {"node_type": "TermNode", "value": "charger"}
+            ]
+        },
+        "expected_settings": {"plural": "oFf", "defaultoperator": "AND"}
+    },
+    {
+        "description": "USPTO to AST: Fielded search with NOT",
+        "conversion_type": "uspto_to_ast",
+        "input": "SPEC/(NOT (combustion OR fossil))",
+        "expected_output": {
+            "node_type": "FieldedSearchNode", "field_canonical_name": "description", "system_field_code": "SPEC", "query": {
+                "node_type": "BooleanOpNode", "operator": "NOT", "operands": [
+                    {
+                        "node_type": "BooleanOpNode", "operator": "OR", "operands": [
+                            {"node_type": "TermNode", "value": "combustion"},
+                            {"node_type": "TermNode", "value": "fossil"}
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_settings": {}
+    },
+
+    {
+        "description": "USPTO to AST: Date range with different operator",
+        "conversion_type": "uspto_to_ast",
+        "input": "@AD>20200101<20210101",
+        "expected_output": null, 
+        "expected_settings": {},
+        "expected_error": "PARSE_ERROR: @AD>20200101<20210101(col 13) msg: Expected end of text"
+    },
+    {
+        "description": "USPTO to AST: Proximity with phrases",
+        "conversion_type": "uspto_to_ast",
+        "input": "\"solar cell\" ADJ3 \"thin film\"",
+        "expected_output": {
+            "node_type": "ProximityOpNode", "operator": "ADJ", "distance": 3, "ordered": true, "terms": [
+                {"node_type": "TermNode", "value": "solar cell", "is_phrase": true},
+                {"node_type": "TermNode", "value": "thin film", "is_phrase": true}
+            ]
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Term that is an operator 'AND'",
+        "conversion_type": "uspto_to_ast",
+        "input": "\"AND\"",
+        "expected_output": {"node_type": "TermNode", "value": "AND", "is_phrase": true},
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Inventor name with punctuation",
+        "conversion_type": "uspto_to_ast",
+        "input": "IN/(\"O'Malley, Jr.\")", 
+        "expected_output": {
+            "node_type": "FieldedSearchNode", 
+            "field_canonical_name": "inventor_name", 
+            "system_field_code": "IN", 
+            "query": {
+                 "node_type": "TermNode", 
+                 "value": "O'Malley, Jr.", 
+                 "is_phrase": true, 
+                 "has_wildcard": false
+            }
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: US Classification CCLS field",
+        "conversion_type": "uspto_to_ast",
+        "input": "CCLS/257/E21.525",
+        "expected_output": {
+            "node_type": "FieldedSearchNode", "field_canonical_name": "us_classification_ccls", "system_field_code": "CCLS", "query": {
+                 "node_type": "TermNode", "value": "257/E21.525"
+            }
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Empty query after SET",
+        "conversion_type": "uspto_to_ast",
+        "input": "SET Plural=ON",
+        "expected_output": {"node_type": "TermNode", "value": "__EMPTY_AFTER_SET__"},
+        "expected_settings": {"plural": "ON"}
+    },
+    {
+        "description": "USPTO to AST: Query with only parentheses",
+        "conversion_type": "uspto_to_ast",
+        "input": "(renewable)",
+        "expected_output": {"node_type": "TermNode", "value": "renewable"},
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Multiple proximity operators, left associative",
+        "conversion_type": "uspto_to_ast",
+        "input": "A ADJ B NEAR C",
+        "expected_output": {
+            "node_type": "ProximityOpNode", "operator": "NEAR", "ordered": false, "terms": [
+                {
+                    "node_type": "ProximityOpNode", "operator": "ADJ", "ordered": true, "terms": [
+                        {"node_type": "TermNode", "value": "A"}, {"node_type": "TermNode", "value": "B"}
+                    ]
+                },
+                {"node_type": "TermNode", "value": "C"}
+            ]
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Wildcard at beginning of term",
+        "conversion_type": "uspto_to_ast",
+        "input": "*voltaic",
+        "expected_output": {"node_type": "TermNode", "value": "*voltaic", "has_wildcard": true},
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Mixed operators and fields",
+        "conversion_type": "uspto_to_ast",
+        "input": "PN/12345 OR AN/\"Big Corp\" AND @PD=20220101",
+        "expected_output": {
+            "node_type": "BooleanOpNode", "operator": "OR", "operands": [
+                {"node_type": "FieldedSearchNode", "field_canonical_name": "patent_number", "system_field_code": "PN", "query": {"node_type": "TermNode", "value": "12345"}},
+                {
+                    "node_type": "BooleanOpNode", "operator": "AND", "operands": [
+                        {"node_type": "FieldedSearchNode", "field_canonical_name": "assignee_name", "system_field_code": "AN", "query": {"node_type": "TermNode", "value": "Big Corp", "is_phrase": true}},
+                        {"node_type": "DateSearchNode", "field_canonical_name": "publication_date", "operator": "=", "date_value": "20220101", "system_field_code": "PD"}
+                    ]
+                }
+            ]
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: Deeply nested parentheses",
+        "conversion_type": "uspto_to_ast",
+        "input": "(((deeply) AND nested) OR (query))",
+        "expected_output": {
+            "node_type": "BooleanOpNode", "operator": "OR", "operands": [
+                {
+                    "node_type": "BooleanOpNode", "operator": "AND", "operands": [
+                        {"node_type": "TermNode", "value": "deeply"},
+                        {"node_type": "TermNode", "value": "nested"}
+                    ]
+                },
+                {"node_type": "TermNode", "value": "query"}
+            ]
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "USPTO to AST: IPC field with version indicator",
+        "conversion_type": "uspto_to_ast",
+        "input": "IPC/(\"H01L21/00(20060101)\")", 
+        "expected_output": {
+            "node_type": "FieldedSearchNode", 
+            "field_canonical_name": "ipc", 
+            "system_field_code": "IPC", 
+            "query": {
+                 "node_type": "TermNode", 
+                 "value": "H01L21/00(20060101)", 
+                 "is_phrase": true, 
+                 "has_wildcard": false
+            }
+        },
+        "expected_settings": {}
+    },
+    {
+        "description": "AST to Google: Nested Proximity with different operators",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "ProximityOpNode", "operator": "ADJ", "ordered": true, "terms": [
+                {"node_type": "TermNode", "value": "alpha"},
+                {
+                    "node_type": "ProximityOpNode", "operator": "NEAR", "distance": 3, "ordered": false, "terms": [
+                        {"node_type": "TermNode", "value": "beta"}, {"node_type": "TermNode", "value": "gamma"}
+                    ]
+                }
+            ]
+        }},
+        "expected_output": "alpha ADJ (beta NEAR3 gamma)"
+    },
+    {
+        "description": "AST to Google: Fielded search (claims) with OR",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "FieldedSearchNode", "field_canonical_name": "claims", "query": {
+                "node_type": "BooleanOpNode", "operator": "OR", "operands": [
+                    {"node_type": "TermNode", "value": "method"}, {"node_type": "TermNode", "value": "system"}
+                ]
+            }
+        }},
+        "expected_output": "CL=(method OR system)"
+    },
+    {
+        "description": "AST to Google: Date range (application_date)",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "DateSearchNode", "field_canonical_name": "application_date", 
+            "operator": ">=", "date_value": "20190101", "date_value2": "20191231"
+        }},
+        "expected_output": "after:filing:20190101 before:filing:20191231"
+    },
+    {
+        "description": "AST to Google: NOT a phrase",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "BooleanOpNode", "operator": "NOT", "operands": [
+                {"node_type": "TermNode", "value": "legacy system", "is_phrase": true}
+            ]
+        }},
+        "expected_output": "NOT (\"legacy system\")"
+    },
+    {
+        "description": "AST to Google: Term with internal hyphen",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {"node_type": "TermNode", "value": "state-of-the-art"}},
+        "expected_output": "state-of-the-art"
+    },
+    {
+        "description": "AST to Google: Inventor name with spaces (should be quoted by generator)",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "FieldedSearchNode", "field_canonical_name": "inventor_name", "query": {
+                 "node_type": "TermNode", "value": "Doe John A" 
+            }
+        }},
+        "expected_output": "inventor:(\"Doe John A\")"
+    },
+    {
+        "description": "AST to Google: Multiple NOT operators",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "BooleanOpNode", "operator": "AND", "operands": [
+                {"node_type": "BooleanOpNode", "operator": "NOT", "operands": [{"node_type": "TermNode", "value": "A"}]},
+                {"node_type": "BooleanOpNode", "operator": "NOT", "operands": [{"node_type": "TermNode", "value": "B"}]}
+            ]
+        }},
+        "expected_output": "-A AND -B" 
+    },
+    {
+        "description": "AST to Google: Empty string term",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {"node_type": "TermNode", "value": ""}},
+        "expected_output": ""
+    },
+    {
+        "description": "AST to Google: Proximity with wildcard terms",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "ProximityOpNode", "operator": "NEAR", "distance": 2, "terms": [
+                {"node_type": "TermNode", "value": "comp*", "has_wildcard": true},
+                {"node_type": "TermNode", "value": "syst?", "has_wildcard": true}
+            ]
+        }},
+        "expected_output": "comp* NEAR2 syst?"
+    },
+    {
+        "description": "AST to Google: Publication Year exact match",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "DateSearchNode", "field_canonical_name": "publication_year", "operator": "=", "date_value": "2021"
+        }},
+        "expected_output": "after:publication:20210101 before:publication:20211231"
+    },
+    {
+        "description": "AST to Google: Term 'NOT' as literal",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {"node_type": "TermNode", "value": "NOT"}},
+        "expected_output": "\"NOT\""
+    },
+    {
+        "description": "AST to Google: Complex structure needing careful parenthesizing",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "BooleanOpNode", "operator": "AND", "operands": [
+                {"node_type": "TermNode", "value": "X"},
+                {
+                    "node_type": "BooleanOpNode", "operator": "OR", "operands": [
+                        {"node_type": "TermNode", "value": "Y"},
+                        {"node_type": "ProximityOpNode", "operator": "ADJ", "terms":[
+                            {"node_type": "TermNode", "value": "Z1"},
+                            {"node_type": "TermNode", "value": "Z2"}
+                        ], "ordered": true}
+                    ]
+                }
+            ]
+        }},
+        "expected_output": "X AND (Y OR (Z1 ADJ Z2))"
+    },
+     {
+        "description": "AST to Google: CPC without /low",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "FieldedSearchNode", "field_canonical_name": "cpc", "query": {
+                "node_type": "ClassificationNode", "scheme": "CPC", "value": "A01B1/00", "include_children": false
+            }
+        }},
+        "expected_output": "CPC:A01B100"
+    },
+    {
+        "description": "AST to Google: Boolean XOR with three operands",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "BooleanOpNode", "operator": "XOR", "operands": [
+                {"node_type": "TermNode", "value": "apple"},
+                {"node_type": "TermNode", "value": "banana"},
+                {"node_type": "TermNode", "value": "cherry"}
+            ]
+        }},
+        "expected_output": "apple XOR banana XOR cherry" 
+    },
+    {
+        "description": "AST to Google: Fielded abstract with proximity",
+        "conversion_type": "ast_to_google",
+        "input": {"node_type": "QueryRootNode", "query": {
+            "node_type": "FieldedSearchNode", "field_canonical_name": "abstract", "query": {
+                "node_type": "ProximityOpNode", "operator": "WITH", "terms": [
+                     {"node_type": "TermNode", "value": "data"}, {"node_type": "TermNode", "value": "analysis"}
+                ], "ordered": false, "scope_unit": "sentence"}
+            }
+        },
+        "expected_output": "AB=(data WITH analysis)"
+    },
+    {
+        "description": "USPTO to Google: DefaultOperator OR with multiple fields",
+        "conversion_type": "uspto_to_google",
+        "input": "SET DefaultOperator=OR PN/123 AN/Acme IN/Doe",
+        "expected_output": "patent_number:(\"123\") assignee:(Acme) inventor:(Doe)", 
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Query with only date range",
+        "conversion_type": "uspto_to_google",
+        "input": "@AY>=2018<=2020",
+        "expected_output": "after:filing:20180101 before:filing:20201231",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Fielded search with only wildcard",
+        "conversion_type": "uspto_to_google",
+        "input": "TTL/(*)", 
+        "expected_output": "TI=(*)",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Nested parentheses in fielded search",
+        "conversion_type": "uspto_to_google",
+        "input": "SPEC/((method AND (data OR signal)) OR process)",
+        "expected_output": "(method AND (data OR signal)) OR process",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Query with term 'adj' not as operator",
+        "conversion_type": "uspto_to_google",
+        "input": "adjustment OR \"adj sensor\"",
+        "expected_output": "adjustment OR \"adj sensor\"",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Issue Date (ISD) field",
+        "conversion_type": "uspto_to_google",
+        "input": "@ISD=20230315",
+        "expected_output": "after:publication:20230315 before:publication:20230315",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Proximity SAME with complex operands",
+        "conversion_type": "uspto_to_google",
+        "input": "(A OR B) SAME (C AND D)",
+        "expected_output": "(A OR B) SAME (C AND D)",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Application number field APP",
+        "conversion_type": "uspto_to_google",
+        "input": "APP/(\"16/123,456\")",
+        "expected_output": null, 
+        "expected_error": "Error generating google query: Error:UnhandledASTNode(FieldedSearchNode)"
+    },
+    {
+        "description": "USPTO to Google: Extremely simple SET",
+        "conversion_type": "uspto_to_google",
+        "input": "SET P=ON X",
+        "expected_output": "X",
+        "expected_settings": {"p":"ON"}, 
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Query with only a NOT",
+        "conversion_type": "uspto_to_google",
+        "input": "NOT standalone",
+        "expected_output": "-standalone",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: CCLS field to Google (passes through content)",
+        "conversion_type": "uspto_to_google",
+        "input": "CCLS/370/230.1",
+        "expected_output": "370/230.1", 
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Chained ADJ operators",
+        "conversion_type": "uspto_to_google",
+        "input": "word1 ADJ word2 ADJ word3",
+        "expected_output": "(word1 ADJ word2) ADJ word3",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Leading wildcard in phrase",
+        "conversion_type": "uspto_to_google",
+        "input": "TTL/(\"*leading wildcard phrase\")",
+        "expected_output": "TI=(\"*leading wildcard phrase\")",
+        "expected_error": null
+    },
+    {
+        "description": "USPTO to Google: Date with slashes",
+        "conversion_type": "uspto_to_google",
+        "input": "@PD=2022/11/01",
+        "expected_output": "after:publication:20221101 before:publication:20221101",
         "expected_error": null
     }
 ]
