@@ -1293,35 +1293,436 @@
         "expected_settings": {}
     },
     {
-        "description": "Google to USPTO: Simple term (stub test)",
+        "description": "Google to USPTO: Simple term",
         "conversion_type": "google_to_uspto",
         "input": "solar",
-        "expected_output": null,
-        "expected_error": "Error parsing google query 'solar': __GOOGLE_PARSE_STUB__solar", 
+        "expected_output": "solar", 
+        "expected_error": null,     
+        "expected_settings": {}
+    },
+{
+    "description": "Google to AST: Simple term",
+    "conversion_type": "google_to_ast",
+    "input": "simple",
+    "expected_output": { 
+        "node_type": "TermNode", 
+        "value": "simple", 
+        "is_phrase": false, 
+        "has_wildcard": false
+    },
+    "expected_error": null,
+    "expected_settings": {}
+},
+{
+    "description": "AST to USPTO: Simple term", 
+    "conversion_type": "ast_to_uspto",
+    "input": {
+        "node_type": "QueryRootNode",
+        "query": {"node_type": "TermNode", "value": "from_ast", "is_phrase": false, "has_wildcard": false},
+        "settings": {}
+    },
+    "expected_output": "from_ast",
+    "expected_error": null
+}
+,
+    {
+        "description": "Google to USPTO: Simple phrase",
+        "conversion_type": "google_to_uspto",
+        "input": "\"solar panel\"",
+        "expected_output": "\"solar panel\"",
+        "expected_error": null,
         "expected_settings": {}
     },
     {
-        "description": "Google to AST: Simple term (stub test)",
-        "conversion_type": "google_to_ast",
-        "input": "simple",
-        "expected_output": { 
-            "node_type": "TermNode", 
-            "value": "__GOOGLE_PARSE_STUB__simple", 
-            "is_phrase": false, 
-            "has_wildcard": false
-        },
-        "expected_error": null, 
+        "description": "Google to USPTO: TI field with simple term",
+        "conversion_type": "google_to_uspto",
+        "input": "TI=(battery)",
+        "expected_output": "TTL/(battery)",
+        "expected_error": null,
         "expected_settings": {}
     },
     {
-        "description": "AST to USPTO: Simple term (stub test)",
-        "conversion_type": "ast_to_uspto",
-        "input": {
-            "node_type": "QueryRootNode",
-            "query": {"node_type": "TermNode", "value": "from_ast", "is_phrase": false, "has_wildcard": false},
-            "settings": {}
-        },
-        "expected_output": null,
-        "expected_error": "__USPTO_GENERATE_STUB_FROM_AST__TermNode(value='from_ast', is_phrase=False, has_wildcard=False)"
+        "description": "Google to USPTO: TI field with phrase",
+        "conversion_type": "google_to_uspto",
+        "input": "TI=(\"energy storage\")",
+        "expected_output": "TTL/(\"energy storage\")",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: AB field with OR expression",
+        "conversion_type": "google_to_uspto",
+        "input": "AB=(method OR system)",
+        "expected_output": "ABST/(method OR system)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: CL field with AND expression",
+        "conversion_type": "google_to_uspto",
+        "input": "CL=(component AND assembly)",
+        "expected_output": "ACLM/(component AND assembly)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: CPC field basic",
+        "conversion_type": "google_to_uspto",
+        "input": "CPC:G06F3/048",
+        "expected_output": "CPC/(G06F3/048)", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: CPC field with subgroup and no slash in input",
+        "conversion_type": "google_to_uspto",
+        "input": "CPC:H01L2100",
+        "expected_output": "CPC/(H01L21/00)", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: IPC field with slash",
+        "conversion_type": "google_to_uspto",
+        "input": "IPC:A61K31/00",
+        "expected_output": "IPC/(A61K31/00)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Assignee field with phrase",
+        "conversion_type": "google_to_uspto",
+        "input": "assignee:(\"International Business Machines\")",
+        "expected_output": "AN/(\"International Business Machines\")",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Inventor field with single name",
+        "conversion_type": "google_to_uspto",
+        "input": "inventor:(Edison)",
+        "expected_output": "IN/(Edison)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Patent number field",
+        "conversion_type": "google_to_uspto",
+        "input": "patent_number:(US9000000B2)",
+        "expected_output": "PN/(US9000000B2)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: NOT simple term",
+        "conversion_type": "google_to_uspto",
+        "input": "-chemical",
+        "expected_output": "NOT chemical",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: NOT phrase",
+        "conversion_type": "google_to_uspto",
+        "input": "NOT \"organic compound\"",
+        "expected_output": "NOT (\"organic compound\")",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: NOT parenthesized expression",
+        "conversion_type": "google_to_uspto",
+        "input": "NOT (TI=(battery) OR AB=(cell))",
+        "expected_output": "NOT (TTL/(battery) OR ABST/(cell))",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Term AND term",
+        "conversion_type": "google_to_uspto",
+        "input": "cat AND dog",
+        "expected_output": "cat AND dog",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Term OR term",
+        "conversion_type": "google_to_uspto",
+        "input": "cat OR dog",
+        "expected_output": "cat OR dog",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: (A OR B) AND C",
+        "conversion_type": "google_to_uspto",
+        "input": "(cat OR dog) AND fish",
+        "expected_output": "(cat OR dog) AND fish",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: A AND (B OR C)",
+        "conversion_type": "google_to_uspto",
+        "input": "fish AND (cat OR dog)",
+        "expected_output": "fish AND (cat OR dog)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: ADJ operator",
+        "conversion_type": "google_to_uspto",
+        "input": "solar ADJ panel",
+        "expected_output": "solar ADJ panel",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: NEAR operator",
+        "conversion_type": "google_to_uspto",
+        "input": "thermal NEAR energy",
+        "expected_output": "thermal NEAR energy",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: ADJ5 operator",
+        "conversion_type": "google_to_uspto",
+        "input": "user ADJ5 interface",
+        "expected_output": "user ADJ5 interface",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: NEAR10 operator",
+        "conversion_type": "google_to_uspto",
+        "input": "data NEAR10 packet",
+        "expected_output": "data NEAR10 packet",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: WITH operator",
+        "conversion_type": "google_to_uspto",
+        "input": "engine WITH control",
+        "expected_output": "engine WITH control",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: SAME operator",
+        "conversion_type": "google_to_uspto",
+        "input": "algorithm SAME method",
+        "expected_output": "algorithm SAME method",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Phrase ADJ Phrase",
+        "conversion_type": "google_to_uspto",
+        "input": "\"light emitting\" ADJ \"diode array\"",
+        "expected_output": "\"light emitting\" ADJ \"diode array\"",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: (A ADJ B) OR (C NEAR D)",
+        "conversion_type": "google_to_uspto",
+        "input": "(solar ADJ panel) OR (wind NEAR turbine)",
+        "expected_output": "(solar ADJ panel) OR (wind NEAR turbine)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Date after:publication",
+        "conversion_type": "google_to_uspto",
+        "input": "after:publication:20220101",
+        "expected_output": "@PD>=20220101",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Date before:filing",
+        "conversion_type": "google_to_uspto",
+        "input": "before:filing:20201231",
+        "expected_output": "@AD<=20201231",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Date after:priority",
+        "conversion_type": "google_to_uspto",
+        "input": "after:priority:20190615",
+        "expected_output": "ERROR_UNKNOWN_USPTO_DATE_FIELD_priority_date", 
+        "expected_error": "Error generating uspto query: ERROR_UNKNOWN_USPTO_DATE_FIELD_priority_date",
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Date range (publication)",
+        "conversion_type": "google_to_uspto",
+        "input": "after:publication:20210101 before:publication:20211231",
+        "expected_output": "(@PD>=20210101) AND (@PD<=20211231)", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Date range (filing) with text",
+        "conversion_type": "google_to_uspto",
+        "input": "TI=(motor) after:filing:20180101 before:filing:20180630",
+        "expected_output": "(TTL/(motor)) AND ((@AD>=20180101) AND (@AD<=20180630))",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Implicit AND between terms",
+        "conversion_type": "google_to_uspto",
+        "input": "term1 term2",
+        "expected_output": "term1 AND term2",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Implicit AND with phrase",
+        "conversion_type": "google_to_uspto",
+        "input": "\"first part\" term2",
+        "expected_output": "\"first part\" AND term2",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Implicit AND with field",
+        "conversion_type": "google_to_uspto",
+        "input": "TI=(engine) term2",
+        "expected_output": "(TTL/(engine)) AND term2",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Mixed implicit and explicit AND",
+        "conversion_type": "google_to_uspto",
+        "input": "A B AND C",
+        "expected_output": "(A AND B) AND C",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Quoted keyword 'AND'",
+        "conversion_type": "google_to_uspto",
+        "input": "\"AND\"",
+        "expected_output": "\"AND\"",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Quoted keyword 'NEAR'",
+        "conversion_type": "google_to_uspto",
+        "input": "TI=(\"NEAR\")",
+        "expected_output": "TTL/(\"NEAR\")",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: CPC with /low",
+        "conversion_type": "google_to_uspto",
+        "input": "CPC:H01L21/00/low",
+        "expected_output": "CPC/(H01L21/00)", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Term with wildcard ?",
+        "conversion_type": "google_to_uspto",
+        "input": "te?t",
+        "expected_output": "te?t", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Term with wildcard *",
+        "conversion_type": "google_to_uspto",
+        "input": "test*",
+        "expected_output": "test*", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Term with wildcard $ (Google specific, map to *)",
+        "conversion_type": "google_to_uspto",
+        "input": "photo$",
+        "expected_output": "photo*", 
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Fielded search with wildcard in term",
+        "conversion_type": "google_to_uspto",
+        "input": "AB=(comput*)",
+        "expected_output": "ABST/(comput*)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Very nested expression",
+        "conversion_type": "google_to_uspto",
+        "input": "TI=(A AND (B OR (C ADJ D))) E",
+        "expected_output": "(TTL/(A AND (B OR (C ADJ D)))) AND E",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: XOR operator",
+        "conversion_type": "google_to_uspto",
+        "input": "cat XOR dog",
+        "expected_output": "cat XOR dog",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Empty query string",
+        "conversion_type": "google_to_uspto",
+        "input": "",
+        "expected_output": "",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Query with only spaces",
+        "conversion_type": "google_to_uspto",
+        "input": "   ",
+        "expected_output": "",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Single field and single date",
+        "conversion_type": "google_to_uspto",
+        "input": "assignee:(CompanyX) before:publication:20231231",
+        "expected_output": "(AN/(CompanyX)) AND (@PD<=20231231)",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Multiple proximity operators of same type",
+        "conversion_type": "google_to_uspto",
+        "input": "word1 ADJ word2 ADJ word3",
+        "expected_output": "(word1 ADJ word2) ADJ word3",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Multiple proximity operators of different types",
+        "conversion_type": "google_to_uspto",
+        "input": "word1 ADJ word2 NEAR word3",
+        "expected_output": "(word1 ADJ word2) NEAR word3",
+        "expected_error": null,
+        "expected_settings": {}
+    },
+    {
+        "description": "Google to USPTO: Complex query with fields, bool, prox, dates",
+        "conversion_type": "google_to_uspto",
+        "input": "(TI=(review OR survey) AND AB=(AI ADJ ethics)) OR (inventor:(Smith) before:filing:20220101)",
+        "expected_output": "((TTL/(review OR survey)) AND (ABST/(AI ADJ ethics))) OR ((IN/(Smith)) AND (@AD<=20220101))",
+        "expected_error": null,
+        "expected_settings": {}
     }
 ]
