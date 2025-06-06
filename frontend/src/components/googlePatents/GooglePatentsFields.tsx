@@ -16,8 +16,6 @@ export interface GoogleLikeSearchFields {
   languages: Language[];
   status: PatentStatus; patentType: PatentType;
   litigation: LitigationStatus;
-  cpc?: string;
-  specificTitle?: string; documentId?: string;
 }
 
 export const dateTypeOptions: Array<{value: DateType; label: string}> = [
@@ -103,19 +101,12 @@ export const patentTypeOptions: Array<{value: PatentType; label: string}> = [
     {value: '', label: 'Any Type'},
     {value: 'PATENT', label: 'Patent'}, // Simplified label
     {value: 'DESIGN', label: 'Design'},
-    // {value: 'PATENT', label: 'Patent (General/Utility)'}, {value: 'UTILITY', label: 'Utility (Explicit)'},
-    // {value: 'DESIGN', label: 'Design'}, {value: 'PLANT', label: 'Plant'},
-    // {value: 'REISSUE', label: 'Reissue'}, {value: 'PROVISIONAL', label: 'Provisional'},
-    // {value: 'DEFENSIVE_PUBLICATION', label: 'Defensive Publication'},
-    // {value: 'STATUTORY_INVENTION_REGISTRATION', label: 'Statutory Invention Registration (SIR)'},
-    // {value: 'OTHER', label: 'Other'},
 ];
 export const litigationStatusOptions: Array<{value: LitigationStatus; label: string}> = [
     {value: '', label: 'Any Litigation'}, {value: 'YES', label: 'Has Related Litigation'}, {value: 'NO', label: 'No Known Litigation'},
 ];
 
 export function getDateTypeLabel(value: DateType): string { return dateTypeOptions.find(opt => opt.value === value)?.label || 'Select Type';}
-// ... rest of the file
 export function getLitigationStatusLabel(value: LitigationStatus): string { return litigationStatusOptions.find(opt => opt.value === value)?.label || 'Any Litigation';}
 
 interface MultiSelectOption<T extends string> { value: T; label: string; }
@@ -284,13 +275,6 @@ const GooglePatentsFields: React.FC<GooglePatentsFieldsProps> = ({
                 {litigationStatusOptions.map(opt => <option key={opt.value || 'any-litigation'} value={opt.value}>{opt.label}</option>)}
             </select>
         </div>
-        {/* TODO: Add inputs for dedicated CPC, Title, Document ID if needed for Google form specifically */}
-        {/* These were part of GoogleLikeSearchFields but not rendered. Example:
-        <div className="p-3 border-gray-300 rounded-md bg-white shadow-sm">
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-1">Specific CPC</label>
-            <input type="text" value={fields.cpc || ''} onChange={e => onFieldChange('cpc', e.target.value)} placeholder="e.g., H01L21/00" className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1.5 text-xs"/>
-        </div>
-        */}
     </div>
   );
 };

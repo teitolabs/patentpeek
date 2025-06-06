@@ -1,8 +1,8 @@
 // src/components/usptoPatents/UsptoPatentsFields.tsx
 import React from 'react';
-// import { ChevronDown, ChevronRight } from 'lucide-react'; // REMOVED Chevron icons
 
-interface UsptoPatentsFieldsProps {
+// ADD 'export' HERE
+export interface UsptoPatentsFieldsProps {
   defaultOperator: string;
   setDefaultOperator: (value: string) => void;
   highlights: string;
@@ -15,8 +15,6 @@ interface UsptoPatentsFieldsProps {
   setBritishEquivalents: (value: boolean) => void;
   selectedDatabases: string[];
   setSelectedDatabases: React.Dispatch<React.SetStateAction<string[]>>;
-  // optionsExpanded: boolean; // REMOVED
-  // setOptionsExpanded: (value: boolean) => void; // REMOVED
   onSearch: () => void;
   onClear: () => void;
   onPatentNumberSearch: () => void;
@@ -29,7 +27,7 @@ const USPTO_DATABASES = [
 ];
 
 const defaultOperatorOptions = ['AND', 'OR', 'ADJ', 'NEAR', 'SAME', 'WITH'];
-const highlightOptions = [ // REORDERED and default is handled by ChatInput state
+const highlightOptions = [
     { value: 'NONE', label: 'None' },
     { value: 'SINGLE_COLOR', label: 'Single Color' },
     { value: 'MULTI_COLOR', label: 'Multi-color' },
@@ -43,7 +41,6 @@ const UsptoPatentsFields: React.FC<UsptoPatentsFieldsProps> = ({
   plurals, setPlurals,
   britishEquivalents, setBritishEquivalents,
   selectedDatabases, setSelectedDatabases,
-  // optionsExpanded, setOptionsExpanded, // REMOVED
   onSearch, onClear, onPatentNumberSearch
 }) => {
 
@@ -138,22 +135,6 @@ const UsptoPatentsFields: React.FC<UsptoPatentsFieldsProps> = ({
           </div>
         </div>
 
-        {/* REMOVED Options Toggle Section */}
-        {/* <div>
-          <button
-            onClick={() => setOptionsExpanded(!optionsExpanded)}
-            className="flex items-center text-gray-700 hover:text-blue-600 w-full py-2 px-1 border-t border-b border-gray-200 mt-3"
-          >
-            {optionsExpanded ? <ChevronDown size={18} className="mr-2" /> : <ChevronRight size={18} className="mr-2" />}
-            Options
-          </button>
-          {optionsExpanded && (
-            <div className="mt-2 p-3 border border-gray-200 rounded bg-white">
-              <p className="text-gray-500">Additional USPTO options will be here...</p>
-            </div>
-          )}
-        </div> */}
-
         <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 justify-end">
           <button
             type="button"
@@ -181,7 +162,6 @@ const UsptoPatentsFields: React.FC<UsptoPatentsFieldsProps> = ({
 
       {/* Databases Sidebar Area */}
       <div className="w-full md:w-64 flex-shrink-0 p-4 border border-gray-300 rounded-md bg-gray-50 shadow-sm">
-        {/* ... (Databases section remains the same) ... */}
         <h4 className="font-medium text-gray-900 mb-2">Databases</h4>
         <div className="space-y-2">
           <div className="flex items-center">

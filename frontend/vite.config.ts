@@ -1,15 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Proxy /api requests to your Flask backend
+      // Proxy requests from /api to your backend server
       '/api': {
-        target: 'http://localhost:5001', // Your Flask server address
+        target: 'http://127.0.0.1:8000', // <-- THIS MUST MATCH YOUR BACKEND ADDRESS
         changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, '') // Optional: if your Flask routes don't start with /api
+        secure: false,      
       }
     }
   }
