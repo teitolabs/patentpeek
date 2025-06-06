@@ -61,61 +61,42 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const debouncedQueryForParsing = useDebounce(mainQueryValue, 500);
 
   // --- REFACTORED API LOGIC ---
-  const generationStateRef = useRef({ activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings });
+
+  // This function is now stable and can be called explicitly.
+  const triggerQueryGeneration = useCallback(async () => {
+    const result = await generateQuery(
+      activeFormat,
+      searchConditions,
+      googleLikeFields,
+      usptoSpecificSettings
+    );
+
+    isInternalUpdate.current = true;
+    onMainInputChange(result.queryStringDisplay);
+    setQueryLinkHref(result.url);
+  }, [activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings, onMainInputChange]);
+
+  // This effect now ONLY triggers when fields OTHER THAN search terms change.
   useEffect(() => {
-    generationStateRef.current = { activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings };
-  });
+    // We don't want this to fire for every keystroke in the text fields.
+    // It will fire when dropdowns, dates, inventors, etc., are changed.
+    triggerQueryGeneration();
+  }, [googleLikeFields, usptoSpecificSettings, activeFormat, triggerQueryGeneration]);
+  // Note: `searchConditions` is intentionally removed from this dependency array.
 
-  const debouncedGenerateQuery = useRef(
-    debounce(async () => {
-      const { activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings } = generationStateRef.current;
-      
-      // Do not generate if the UI is empty. This prevents overwriting a user's typed query with an empty one.
-      const hasSearchTerms = searchConditions.some(sc => sc.type === 'TEXT' && sc.data.text.trim() !== '');
-      const hasClassifications = searchConditions.some(sc => sc.type === 'CLASSIFICATION' && sc.data.cpc.trim() !== '');
-      const hasFields = googleLikeFields.inventors.length > 0 || googleLikeFields.assignees.length > 0 || googleLikeFields.dateFrom || googleLikeFields.dateTo;
-      if (!hasSearchTerms && !hasClassifications && !hasFields) {
-          return;
-      }
-
-      const result = await generateQuery( activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings );
-
-      isInternalUpdate.current = true;
-      onMainInputChange(result.queryStringDisplay);
-      setQueryLinkHref(result.url);
-    }, 300)
-  ).current;
-
-  // EFFECT 1: Generation from UI state
+  // EFFECT 2: Parsing from main input (no changes needed here)
   useEffect(() => {
-    // This effect is now only responsible for triggering the debounced generation.
-    // The check for `isInternalUpdate` is now inside the debounced function.
-    debouncedGenerateQuery();
-  }, [searchConditions, googleLikeFields, usptoSpecificSettings, activeFormat, debouncedGenerateQuery]);
-
-
-  // EFFECT 2: Parsing from main input
-  useEffect(() => {
-    // *** THE CRITICAL FIX IS HERE ***
-    // If the lock is set, it means the input was changed by our generator.
-    // We must not parse it. We release the lock and stop.
     if (isInternalUpdate.current) {
         isInternalUpdate.current = false;
         return;
     }
-    
-    // Do not parse empty strings or placeholder/error messages.
     if (!debouncedQueryForParsing.trim() || debouncedQueryForParsing.startsWith("Google Query from AST")) {
         return;
     }
-
     const parse = async () => {
         try {
             const result = await parseQuery(activeFormat, debouncedQueryForParsing);
-            
-            // Set the lock BEFORE updating the UI state to prevent the generator from running.
             isInternalUpdate.current = true;
-            
             const newSearchConditions = result.searchConditions.map(sc => {
                 if (sc.type === 'TEXT') {
                     const textData = sc.data as unknown as { text: string; selectedScopes: string[]; termOperator: string };
@@ -123,7 +104,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 }
                 return sc;
             });
-
             setSearchConditions(manageSearchConditionInputs(newSearchConditions as SearchCondition[]));
             setGoogleLikeFields(result.googleLikeFields);
             setUsptoSpecificSettings(result.usptoSpecificSettings);
@@ -170,6 +150,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => { 
     setSearchConditions(prev => {
         const updated = prev.map(sc => sc.id === conditionId ? { ...sc, type: newType, data: newData as any } : sc);
+        // Trigger generation after modal update
+        triggerQueryGeneration();
         return manageSearchConditionInputs(updated);
     });
     setIsSearchToolModalOpen(false); 
@@ -177,6 +159,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
   
   const updateSearchConditionText = (id: string, newText: string) => {
+      // This function now ONLY updates the state. It does not trigger the API call.
       setSearchConditions(prev => {
           const updated = prev.map(sc => 
               (sc.id === id && sc.type === 'TEXT') 
@@ -190,8 +173,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const removeSearchCondition = (id: string) => {
       setSearchConditions(prev => {
           const updated = prev.filter(sc => sc.id !== id);
+          // Trigger generation after removing a condition
+          triggerQueryGeneration();
           return manageSearchConditionInputs(updated);
       });
+  };
+
+  // NEW: Event handler for the text input
+  const handleTextConditionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      triggerQueryGeneration();
+    }
   };
 
   const renderSearchConditionRow = (condition: SearchCondition, canBeRemoved: boolean) => {
@@ -200,7 +192,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
       const textData = condition.data as InternalTextSearchData;
       return (
         <div className="flex items-center w-full">
-            <input type="text" value={textData.text} onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} placeholder="Type here to add search term..." className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" />
+            <input 
+              type="text" 
+              value={textData.text} 
+              onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} 
+              // Add the new event handlers here
+              onKeyDown={handleTextConditionKeyDown}
+              onBlur={triggerQueryGeneration} // Trigger on clicking away
+              placeholder="Type here to add search term..." 
+              className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" 
+            />
             {canBeRemoved && !isTextEmpty && ( <button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button> )}
         </div>
       );
@@ -283,20 +284,5 @@ const ChatInput: React.FC<ChatInputProps> = ({
     </div>
   );
 };
-
-// A simple debounce function implementation
-function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
-  let timeout: number | null = null;
-
-  const debounced = (...args: Parameters<F>) => {
-    if (timeout !== null) {
-      clearTimeout(timeout);
-      timeout = null;
-    }
-    timeout = window.setTimeout(() => func(...args), waitFor);
-  };
-
-  return debounced as (...args: Parameters<F>) => void;
-}
 
 export default ChatInput;
