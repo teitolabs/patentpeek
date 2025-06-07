@@ -49,7 +49,6 @@ function validateSearchTermText(text: string): string | null {
   return null;
 }
 
-
 export interface ChatInputProps {
   value: string;
   activeFormat: PatentFormat;
@@ -70,8 +69,8 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-function GoogleGIcon(): React.ReactElement { /* ... */ return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.35 11.1H12.18V13.4H18.2C17.96 15.39 16.48 16.97 14.54 16.97C12.23 16.97 10.36 15.09 10.36 12.78C10.36 10.47 12.23 8.59 14.54 8.59C15.63 8.59 16.59 8.98 17.34 9.68L19.03 8.01C17.65 6.74 16.18 6 14.54 6C10.98 6 8.25 8.73 8.25 12.29C8.25 15.85 10.98 18.58 14.54 18.58C17.63 18.58 19.83 16.59 20.44 13.89H14.54V11.1H21.35Z" fill="#4285F4"/></svg>; }
-function getConditionTypeIcon(type: SearchToolType): React.ReactElement { /* ... */ switch (type) { case 'TEXT': return <TypeIcon size={18} />; case 'CLASSIFICATION': return <Hash size={18} />; case 'CHEMISTRY': return <FlaskConical size={18} />; case 'MEASURE': return <Ruler size={18} />; case 'NUMBERS': return <Building2Icon size={18} />; default: return <TypeIcon size={18} />; } }
+function GoogleGIcon(): React.ReactElement { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.35 11.1H12.18V13.4H18.2C17.96 15.39 16.48 16.97 14.54 16.97C12.23 16.97 10.36 15.09 10.36 12.78C10.36 10.47 12.23 8.59 14.54 8.59C15.63 8.59 16.59 8.98 17.34 9.68L19.03 8.01C17.65 6.74 16.18 6 14.54 6C10.98 6 8.25 8.73 8.25 12.29C8.25 15.85 10.98 18.58 14.54 18.58C17.63 18.58 19.83 16.59 20.44 13.89H14.54V11.1H21.35Z" fill="#4285F4"/></svg>; }
+function getConditionTypeIcon(type: SearchToolType): React.ReactElement { switch (type) { case 'TEXT': return <TypeIcon size={18} />; case 'CLASSIFICATION': return <Hash size={18} />; case 'CHEMISTRY': return <FlaskConical size={18} />; case 'MEASURE': return <Ruler size={18} />; case 'NUMBERS': return <Building2Icon size={18} />; default: return <TypeIcon size={18} />; } }
 const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactNode }> = [ { value: 'google', label: 'Google', icon: <GoogleGIcon /> }, { value: 'uspto', label: 'USPTO', icon: <Building2Icon size={18} /> }, ];
 
 
@@ -98,18 +97,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const triggerQueryGeneration = useCallback(async () => {
     const hasErrors = searchConditions.some(c => c.type === 'TEXT' && c.data.error);
     if (hasErrors) {
-      onMainInputChange(''); // Clear the main query if there's an error
+      onMainInputChange('');
       setQueryLinkHref('#');
       return;
     }
-
-    const result = await generateQuery(
-      activeFormat,
-      searchConditions,
-      googleLikeFields,
-      usptoSpecificSettings
-    );
-
+    const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
     isInternalUpdate.current = true;
     onMainInputChange(result.queryStringDisplay);
     setQueryLinkHref(result.url);
@@ -149,7 +141,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     };
     parse();
   }, [debouncedQueryForParsing, activeFormat, createDefaultTextCondition, onMainInputChange]);
-
 
   const manageSearchConditionInputs = (conditions: SearchCondition[]): SearchCondition[] => {
     let filteredConditions = conditions.filter((cond, index) => {

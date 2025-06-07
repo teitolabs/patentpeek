@@ -33,16 +33,12 @@ export type SearchToolType = 'TEXT' | 'CLASSIFICATION' | 'CHEMISTRY' | 'MEASURE'
 export type LitigationStatus = 'YES' | 'NO' | '';
 
 export interface BaseSearchCondition { id: string; type: SearchToolType; }
-
-// --- THIS IS THE IMPORTANT CHANGE ---
 export interface InternalTextSearchData {
   text: string;
   selectedScopes: Set<QueryScope>;
   termOperator: TermOperator;
-  error?: string | null; // The error property is defined here.
+  error?: string | null;
 }
-// ------------------------------------
-
 export interface TextSearchCondition extends BaseSearchCondition { type: 'TEXT'; data: InternalTextSearchData; }
 export interface ClassificationSearchData { cpc: string; option: 'CHILDREN' | 'EXACT'; }
 export interface ClassificationSearchCondition extends BaseSearchCondition { type: 'CLASSIFICATION'; data: ClassificationSearchData; }
