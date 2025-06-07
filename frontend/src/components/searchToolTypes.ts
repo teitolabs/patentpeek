@@ -33,7 +33,16 @@ export type SearchToolType = 'TEXT' | 'CLASSIFICATION' | 'CHEMISTRY' | 'MEASURE'
 export type LitigationStatus = 'YES' | 'NO' | '';
 
 export interface BaseSearchCondition { id: string; type: SearchToolType; }
-export interface InternalTextSearchData { text: string; selectedScopes: Set<QueryScope>; termOperator: TermOperator; }
+
+// --- THIS IS THE IMPORTANT CHANGE ---
+export interface InternalTextSearchData {
+  text: string;
+  selectedScopes: Set<QueryScope>;
+  termOperator: TermOperator;
+  error?: string | null; // The error property is defined here.
+}
+// ------------------------------------
+
 export interface TextSearchCondition extends BaseSearchCondition { type: 'TEXT'; data: InternalTextSearchData; }
 export interface ClassificationSearchData { cpc: string; option: 'CHILDREN' | 'EXACT'; }
 export interface ClassificationSearchCondition extends BaseSearchCondition { type: 'CLASSIFICATION'; data: ClassificationSearchData; }
@@ -68,6 +77,3 @@ export interface BackendSearchConditionPayload {
   type: SearchToolType;
   data: any;
 }
-
-// This type is Google-specific, so it will be defined in GooglePatentsFields.tsx
-// export interface GoogleLikeSearchFields { ... }

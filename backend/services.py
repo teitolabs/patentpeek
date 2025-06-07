@@ -3,34 +3,51 @@ from typing import List, Dict, Any, Optional
 from fastapi import HTTPException
 from pyparsing import ParseException
 import uuid
-import pprint # Import the pretty-print library
+import pprint
 
 import models
 from ast_nodes import (
     ASTNode, QueryRootNode, TermNode, BooleanOpNode, ProximityOpNode,
     FieldedSearchNode, DateSearchNode, ClassificationNode
 )
-# We will use the placeholder versions of the parsers and generators for now
 from google_parser import GoogleQueryParser
 from google_generator import ASTToGoogleQueryGenerator
 from uspto_parser import USPTOQueryParser
 from uspto_generator import ASTToUSPTOQueryGenerator
 
 # --- Helper to Build AST from Structured JSON ---
-# This function converts the frontend's state into a universal AST
 def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
     query_nodes: List[ASTNode] = []
 
-    # 1. Process the main search conditions (text boxes, classifications, etc.)
     if req.searchConditions:
         for condition in req.searchConditions:
+            # --- Handle TEXT conditions ---
             if condition.type == "TEXT":
                 text_data = condition.data
-                if not text_data.text.strip():
+                text_input = text_data.text.strip()
+                if not text_input:
                     continue
-                text_node = TermNode(text_data.text.strip())
-                query_nodes.append(text_node)
 
+                # --- START: CORRECTED PHRASE-HANDLING LOGIC ---
+                text_node: Optional[ASTNode] = None
+
+                # Check if the input is an exact phrase (wrapped in quotes)
+                if text_input.startswith('"') and text_input.endswith('"'):
+                    # Remove the quotes from the value and set the flag
+                    phrase_content = text_input[1:-1]
+                    if phrase_content: # Ensure it's not just empty quotes ""
+                        text_node = TermNode(phrase_content, is_phrase=True)
+                else:
+                    # If not a phrase, treat as one or more words
+                    # A more advanced implementation would parse operators here,
+                    # but for now, we'll treat it as a single term.
+                    text_node = TermNode(text_input, is_phrase=False)
+
+                if text_node:
+                    query_nodes.append(text_node)
+                # --- END: CORRECTED PHRASE-HANDLING LOGIC ---
+
+            # --- Handle CLASSIFICATION conditions ---
             elif condition.type == "CLASSIFICATION":
                 cpc_data = condition.data
                 if not cpc_data.cpc.strip():
@@ -46,7 +63,6 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
     if req.googleLikeFields:
         fields = req.googleLikeFields
         
-        # --- Handle Inventors ---
         if fields.inventors:
             inv_nodes = [
                 FieldedSearchNode("inventor_name", TermNode(inv.value, is_phrase=True)) 
@@ -57,7 +73,6 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
             elif len(inv_nodes) > 1:
                 query_nodes.append(BooleanOpNode("OR", inv_nodes))
 
-        # --- Handle Assignees ---
         if fields.assignees:
             asg_nodes = [
                 FieldedSearchNode("assignee_name", TermNode(asg.value, is_phrase=True))
@@ -68,7 +83,6 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
             elif len(asg_nodes) > 1:
                 query_nodes.append(BooleanOpNode("OR", asg_nodes))
 
-        # --- Handle Dates ---
         date_map = {"publication": "publication_date", "filing": "application_date", "priority": "priority_date"}
         canonical_date_field = date_map.get(fields.dateType)
         if canonical_date_field:
@@ -79,9 +93,6 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
                 date_val = fields.dateTo.replace("-", "")
                 query_nodes.append(DateSearchNode(canonical_date_field, "<=", date_val)) # type: ignore
 
-        # --- START: NEWLY IMPLEMENTED MAPPINGS ---
-
-        # --- Handle Patent Offices ---
         if fields.patentOffices:
             office_nodes = [
                 FieldedSearchNode("country_code", TermNode(office)) 
@@ -90,10 +101,8 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
             if len(office_nodes) == 1:
                 query_nodes.append(office_nodes[0])
             elif len(office_nodes) > 1:
-                # Multiple offices are OR'd together, e.g., (country:US OR country:EP)
                 query_nodes.append(BooleanOpNode("OR", office_nodes))
 
-        # --- Handle Languages ---
         if fields.languages:
             lang_nodes = [
                 FieldedSearchNode("language", TermNode(lang.lower()))
@@ -104,22 +113,15 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
             elif len(lang_nodes) > 1:
                 query_nodes.append(BooleanOpNode("OR", lang_nodes))
 
-        # --- Handle Status ---
-        if fields.status: # e.g., "GRANT" or "APPLICATION"
+        if fields.status:
             query_nodes.append(FieldedSearchNode("status", TermNode(fields.status.lower())))
 
-        # --- Handle Patent Type ---
-        if fields.patentType: # e.g., "PATENT" or "DESIGN"
+        if fields.patentType:
             query_nodes.append(FieldedSearchNode("patent_type", TermNode(fields.patentType.lower())))
 
-        # --- Handle Litigation Status ---
         if fields.litigation == "YES":
-            # This is a special flag in Google's syntax
             query_nodes.append(TermNode("is:litigated"))
         
-        # --- END: NEWLY IMPLEMENTED MAPPINGS ---
-
-
     # 3. Combine all collected nodes into a single root
     if not query_nodes:
         return QueryRootNode(query=TermNode("__EMPTY__"))
@@ -129,7 +131,7 @@ def _build_ast_from_structure(req: models.GenerateRequest) -> QueryRootNode:
     return QueryRootNode(query=BooleanOpNode(operator="AND", operands=query_nodes))
 
 
-# --- Public Service Functions ---
+# --- Public Service Functions (Unchanged) ---
 
 def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
     ast_root = _build_ast_from_structure(req)

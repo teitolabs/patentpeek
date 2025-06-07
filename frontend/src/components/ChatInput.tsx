@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PatentFormat } from '../types';
 import {
     XCircle, Type as TypeIcon, Wand2, Link as LinkIcon,
-    FlaskConical, Ruler, Hash, Building2 as Building2Icon
+    FlaskConical, Ruler, Hash, Building2 as Building2Icon,
+    AlertCircle
 } from 'lucide-react';
 import SearchToolModal, { ModalToolData } from './SearchToolModal';
 import {
@@ -14,6 +15,40 @@ import {
 import GooglePatentsFields, { GoogleLikeSearchFields } from './googlePatents/GooglePatentsFields';
 import { UsptoSpecificSettings } from './usptoPatents/usptoQueryBuilder';
 import { generateQuery, parseQuery } from './googlePatents/googleApi';
+
+const GOOGLE_OPERATORS = /\b(AND|OR|NOT|NEAR\d*|ADJ\d*)\b/gi;
+
+function validateSearchTermText(text: string): string | null {
+  const trimmedText = text.trim();
+  if (!trimmedText) return null;
+
+  let parenCount = 0;
+  for (const char of trimmedText) {
+    if (char === '(') parenCount++;
+    if (char === ')') parenCount--;
+    if (parenCount < 0) return "Unmatched parentheses.";
+  }
+  if (parenCount !== 0) return "Unmatched parentheses.";
+
+  if ((trimmedText.match(/"/g) || []).length % 2 !== 0) {
+    return "Unmatched quotes.";
+  }
+
+  const words = trimmedText.replace(/[()"]/g, ' ').split(/\s+/).filter(Boolean);
+  if (words.length > 0) {
+    const lastWord = words[words.length - 1].toUpperCase();
+    if (lastWord.match(GOOGLE_OPERATORS)) {
+      return "Query cannot end with an operator.";
+    }
+  }
+  
+  if (/\b(AND|OR|NOT)\s+\b(AND|OR|NOT)\b/i.test(trimmedText)) {
+      return "Cannot have consecutive operators.";
+  }
+
+  return null;
+}
+
 
 export interface ChatInputProps {
   value: string;
@@ -44,7 +79,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   value: mainQueryValue, activeFormat, onTabChange, onMainInputChange,
 }) => {
   const createDefaultTextCondition = useCallback((): TextSearchCondition => ({
-    id: crypto.randomUUID(), type: 'TEXT', data: { text: '', selectedScopes: new Set(['FT']), termOperator: 'ALL' }
+    id: crypto.randomUUID(), type: 'TEXT', data: { text: '', selectedScopes: new Set(['FT']), termOperator: 'ALL', error: null }
   }), []);
 
   const [searchConditions, setSearchConditions] = useState<SearchCondition[]>([createDefaultTextCondition()]);
@@ -60,10 +95,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   const debouncedQueryForParsing = useDebounce(mainQueryValue, 500);
 
-  // --- REFACTORED API LOGIC ---
-
-  // This function is now stable and can be called explicitly.
   const triggerQueryGeneration = useCallback(async () => {
+    const hasErrors = searchConditions.some(c => c.type === 'TEXT' && c.data.error);
+    if (hasErrors) {
+      onMainInputChange(''); // Clear the main query if there's an error
+      setQueryLinkHref('#');
+      return;
+    }
+
     const result = await generateQuery(
       activeFormat,
       searchConditions,
@@ -76,15 +115,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
     setQueryLinkHref(result.url);
   }, [activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings, onMainInputChange]);
 
-  // This effect now ONLY triggers when fields OTHER THAN search terms change.
   useEffect(() => {
-    // We don't want this to fire for every keystroke in the text fields.
-    // It will fire when dropdowns, dates, inventors, etc., are changed.
     triggerQueryGeneration();
   }, [googleLikeFields, usptoSpecificSettings, activeFormat, triggerQueryGeneration]);
-  // Note: `searchConditions` is intentionally removed from this dependency array.
 
-  // EFFECT 2: Parsing from main input (no changes needed here)
   useEffect(() => {
     if (isInternalUpdate.current) {
         isInternalUpdate.current = false;
@@ -100,7 +134,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             const newSearchConditions = result.searchConditions.map(sc => {
                 if (sc.type === 'TEXT') {
                     const textData = sc.data as unknown as { text: string; selectedScopes: string[]; termOperator: string };
-                    return { ...sc, data: { ...textData, selectedScopes: new Set(textData.selectedScopes) as Set<QueryScope> } };
+                    return { ...sc, data: { ...textData, selectedScopes: new Set(textData.selectedScopes) as Set<QueryScope>, error: null } };
                 }
                 return sc;
             });
@@ -117,7 +151,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [debouncedQueryForParsing, activeFormat, createDefaultTextCondition, onMainInputChange]);
 
 
-  // --- UI HANDLER FUNCTIONS ---
   const manageSearchConditionInputs = (conditions: SearchCondition[]): SearchCondition[] => {
     let filteredConditions = conditions.filter((cond, index) => {
         if (cond.type === 'TEXT' && (cond.data as InternalTextSearchData).text.trim() === '') {
@@ -150,7 +183,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => { 
     setSearchConditions(prev => {
         const updated = prev.map(sc => sc.id === conditionId ? { ...sc, type: newType, data: newData as any } : sc);
-        // Trigger generation after modal update
         triggerQueryGeneration();
         return manageSearchConditionInputs(updated);
     });
@@ -159,13 +191,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
   
   const updateSearchConditionText = (id: string, newText: string) => {
-      // This function now ONLY updates the state. It does not trigger the API call.
       setSearchConditions(prev => {
-          const updated = prev.map(sc => 
-              (sc.id === id && sc.type === 'TEXT') 
-              ? { ...sc, data: { ...(sc.data as InternalTextSearchData), text: newText } } 
-              : sc
-          );
+          const updated = prev.map(sc => {
+              if (sc.id === id && sc.type === 'TEXT') {
+                  const error = validateSearchTermText(newText);
+                  return { ...sc, data: { ...(sc.data as InternalTextSearchData), text: newText, error } };
+              }
+              return sc;
+          });
           return manageSearchConditionInputs(updated);
       });
   };
@@ -173,13 +206,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const removeSearchCondition = (id: string) => {
       setSearchConditions(prev => {
           const updated = prev.filter(sc => sc.id !== id);
-          // Trigger generation after removing a condition
           triggerQueryGeneration();
           return manageSearchConditionInputs(updated);
       });
   };
 
-  // NEW: Event handler for the text input
   const handleTextConditionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       triggerQueryGeneration();
@@ -188,20 +219,27 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const renderSearchConditionRow = (condition: SearchCondition, canBeRemoved: boolean) => {
     const isTextEmpty = condition.type === 'TEXT' && (condition.data as InternalTextSearchData).text.trim() === '';
+    
     if (condition.type === 'TEXT') {
       const textData = condition.data as InternalTextSearchData;
+      const hasError = !!textData.error;
+
       return (
-        <div className="flex items-center w-full">
+        <div className={`flex items-center w-full ${hasError ? 'ring-2 ring-red-500 rounded-md' : ''}`}>
             <input 
               type="text" 
               value={textData.text} 
               onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} 
-              // Add the new event handlers here
               onKeyDown={handleTextConditionKeyDown}
-              onBlur={triggerQueryGeneration} // Trigger on clicking away
+              onBlur={triggerQueryGeneration}
               placeholder="Type here to add search term..." 
               className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" 
             />
+            {hasError && (
+              <div className="p-1 text-red-600" title={textData.error!}>
+                <AlertCircle size={16} />
+              </div>
+            )}
             {canBeRemoved && !isTextEmpty && ( <button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button> )}
         </div>
       );
