@@ -51,12 +51,11 @@ class ASTToGoogleQueryGenerator:
             else:
                 return f"{field_code}=({value_str})"
 
-    def generate(self, ast_root: QueryRootNode, use_implicit_and: bool = False) -> str:
+    def generate(self, ast_root: QueryRootNode) -> str:
         if not isinstance(ast_root, QueryRootNode): 
             return "Error: Invalid AST root"
         
-        # Generate the core query string, passing the flag down
-        query_part = self._generate_node(ast_root.query, parent_op_type=None, use_implicit_and=use_implicit_and)
+        query_part = self._generate_node(ast_root.query, parent_op_type=None)
         
         return query_part.strip()
 
@@ -77,15 +76,13 @@ class ASTToGoogleQueryGenerator:
         parent_op_base = parent_op_type_str.rstrip('0123456789') if parent_op_type_str else None
         current_prec = GOOGLE_OP_PRECEDENCE.get(current_op_base, 0)
         parent_prec = GOOGLE_OP_PRECEDENCE.get(parent_op_base, 0)
-        if current_prec == 0 or parent_prec == 0:
-            return False
-        if current_prec < parent_prec:
+        
+        # Wrap if the inner operator has lower-or-equal precedence
+        if current_prec <= parent_prec:
             return True
-        if current_prec == parent_prec and current_op_base != parent_op_base:
-             return True
         return False
 
-    def _generate_node(self, node: ASTNode, parent_op_type: Optional[str] = None, use_implicit_and: bool = False) -> str:
+    def _generate_node(self, node: ASTNode, parent_op_type: Optional[str] = None) -> str:
         res_str = ""
         current_node_op_type_str = ""
 
@@ -99,8 +96,8 @@ class ASTToGoogleQueryGenerator:
         elif isinstance(node, FieldedSearchNode):
             field_google = self._map_canonical_to_google_field(node.field_canonical_name)
             if not field_google:
-                return self._generate_node(node.query, parent_op_type, use_implicit_and)
-            query_str = self._generate_node(node.query, field_google, use_implicit_and)
+                return self._generate_node(node.query, parent_op_type)
+            query_str = self._generate_node(node.query, field_google)
             if not query_str: return ""
             res_str = self._format_field_equals_value(field_google, query_str)
             current_node_op_type_str = "FIELD_WRAPPER"
@@ -109,19 +106,16 @@ class ASTToGoogleQueryGenerator:
             operator_upper = node.operator.upper()
             current_node_op_type_str = operator_upper
             if operator_upper == "NOT" and len(node.operands) == 1:
-                operand_str = self._generate_node(node.operands[0], "NOT_OPERAND", use_implicit_and)
+                operand_str = self._generate_node(node.operands[0], "NOT_OPERAND")
                 if not operand_str: return ""
                 res_str = f"NOT {operand_str}"
             else:
-                op_strs = [self._generate_node(op, current_node_op_type_str, use_implicit_and) for op in node.operands]
+                op_strs = [self._generate_node(op, current_node_op_type_str) for op in node.operands]
                 op_strs_filtered = [s for s in op_strs if s]
                 if not op_strs_filtered: return ""
                 if len(op_strs_filtered) == 1: return op_strs_filtered[0]
                 
-                if operator_upper == "AND" and use_implicit_and:
-                    joiner = " "
-                else:
-                    joiner = f" {operator_upper} "
+                joiner = f" {operator_upper} "
                 res_str = joiner.join(op_strs_filtered)
 
         elif isinstance(node, ProximityOpNode):
@@ -130,7 +124,7 @@ class ASTToGoogleQueryGenerator:
                 current_node_op_type_str = f"{base_op_type}{node.distance}"
             else:
                 current_node_op_type_str = base_op_type
-            terms_s = [self._generate_node(t, current_node_op_type_str, use_implicit_and) for t in node.terms]
+            terms_s = [self._generate_node(t, current_node_op_type_str) for t in node.terms]
             terms_s_filtered = [ts for ts in terms_s if ts]
             if not terms_s_filtered: return ""
             if len(terms_s_filtered) == 1: return terms_s_filtered[0]
@@ -146,14 +140,10 @@ class ASTToGoogleQueryGenerator:
         elif isinstance(node, DateSearchNode):
             current_node_op_type_str = "DATE_EXPR_ATOM"
             google_date_type = CANONICAL_TO_GOOGLE_DATE_TYPE.get(node.field_canonical_name)
-            if not google_date_type:
-                return f"Error:UnknownDateK-V({node.field_canonical_name})"
-            
+            if not google_date_type: return f"Error:UnknownDateK-V({node.field_canonical_name})"
             operator_map = {">=": "after", "<=": "before"}
             keyword = operator_map.get(node.operator)
-            if not keyword:
-                return f"Error:UnhandledDateOp({node.operator})"
-            
+            if not keyword: return f"Error:UnhandledDateOp({node.operator})"
             res_str = f"{keyword}:{google_date_type}:{node.date_value}"
         
         else: 

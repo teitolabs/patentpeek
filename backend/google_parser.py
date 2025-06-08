@@ -157,11 +157,6 @@ class GoogleQueryParser:
     def _define_grammar(self):
         LPAR, RPAR, QUOTE = map(pp.Suppress, "()\"")
         
-        # Define a specific parser element for an unmatched RPAR that will raise an error
-        unmatched_rpar = pp.Literal(")").set_fail_action(
-            lambda s, l, e, t: pp.ParseException(s, l, "Unmatched closing parenthesis ')'")
-        )
-
         FIELD_OP = pp.Suppress(":") | pp.Suppress("=")
 
         op_and = pp.CaselessKeyword("AND")
@@ -172,6 +167,8 @@ class GoogleQueryParser:
 
         all_ops_keywords = op_and | op_or | op_not_keyword | op_xor | op_prox_explicit
 
+        # A search term is a word that is not an operator keyword.
+        # The '+' is included here to treat 'a+b' as a single term.
         searchTermAtomChars = pp.alphanums + "-_/.?$*#_+" 
         searchTermWord = ~all_ops_keywords + pp.Word(searchTermAtomChars)
         
@@ -183,7 +180,9 @@ class GoogleQueryParser:
         
         google_field_prefix_re = pp.Regex(f"({google_field_code_keys})(?=\s*[:=])", re.I)("field_code")
         
-        field_content_in_parens = (LPAR + self.current_expr_parser + RPAR)("content")
+        grouped_expr = (LPAR + self.current_expr_parser + RPAR)
+
+        field_content_in_parens = grouped_expr("content")
         field_content_atom = (quotedStringAtom | term_as_value_node.copy())("content")
 
         fielded_search_paren_type = pp.Group(
@@ -207,13 +206,14 @@ class GoogleQueryParser:
         
         litigated_term = pp.CaselessKeyword("is:litigated").set_parse_action(lambda t: TermNode(t[0]))
 
+        # An "atom" is the fundamental building block of a query.
+        # The parser will correctly identify implicit ANDs between these atoms.
         atom = (
-            unmatched_rpar | # Try to match this first. If it succeeds, it fails the parse with a custom message.
             fielded_search_paren_type |
             fielded_search_simple_type |
             date_search |
             litigated_term |
-            (LPAR + self.current_expr_parser + RPAR) | 
+            grouped_expr | 
             quotedStringAtom |
             term_as_value_node
         )
@@ -224,19 +224,20 @@ class GoogleQueryParser:
             (op_neg_prefix, 1, pp.OpAssoc.RIGHT, self._build_ast_from_infix_tokens),
             (op_not_keyword, 1, pp.OpAssoc.RIGHT, self._build_ast_from_infix_tokens),
             (op_prox_explicit, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
-            (pp.Empty(), 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens), # Implicit AND
+            # This is the key: `pp.Empty()` between atoms implies an AND operator.
+            # This correctly handles `a (b)`, `(a) b`, and `(a)(b)` as long as there is whitespace.
+            (pp.Empty(), 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens), 
             (op_and, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
             (op_xor, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
             (op_or, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens)
         ])
         
-        # The final grammar must be anchored to the end of the string
-        return self.current_expr_parser.parse_with_tabs() + pp.StringEnd()
+        return self.current_expr_parser
 
     def parse(self, query_string: str) -> QueryRootNode:
         query_string_stripped = query_string.strip()
         if not query_string_stripped:
-            return QueryRootNode(query=TermNode("__EMPTY__"), settings={})
+            return QueryRootNode(query=TermNode("__EMPTY__"))
 
         try:
             parsed_results = self.grammar.parse_string(query_string_stripped, parse_all=True)
@@ -245,11 +246,13 @@ class GoogleQueryParser:
             if parsed_results and len(parsed_results) == 1 and isinstance(parsed_results[0], ASTNode):
                 final_ast_node = parsed_results[0]
             else:
-                 final_ast_node = TermNode(f"UNEXPECTED_GOOGLE_PARSE_STRUCTURE: Results count {len(parsed_results)}, Content: {str(parsed_results)[:100]}")
-            return QueryRootNode(query=final_ast_node, settings={})
+                 final_ast_node = TermNode(f"UNEXPECTED_PARSE_STRUCTURE: {str(parsed_results)[:100]}")
+            return QueryRootNode(query=final_ast_node)
 
         except pp.ParseException as pe:
-            # Re-raise with a cleaner message for the service layer to catch
-            raise ValueError(str(pe))
+            safe_msg = str(pe.msg).replace('"', "'")
+            safe_line = str(pe.line).replace('"',"'")
+            error_query_node = TermNode(f"PARSE_ERROR: {safe_msg} at column {pe.col}. Near: \"{safe_line}\"")
+            return QueryRootNode(query=error_query_node)
         except Exception as e:
-            raise ValueError(f"UNEXPECTED_GOOGLE_PARSE_ERROR: {type(e).__name__}: {str(e)}")
+            return QueryRootNode(query=TermNode(f"UNEXPECTED_PARSE_ERROR: {type(e).__name__}: {str(e)}"))
