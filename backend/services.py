@@ -81,10 +81,13 @@ def _build_ast_groups(req: models.GenerateRequest) -> List[QueryRootNode]:
             nodes = [FieldedSearchNode("country_code", TermNode(o)) for o in fields.patentOffices]
             if len(nodes) == 1: other_field_nodes.append(nodes[0])
             elif len(nodes) > 1: other_field_nodes.append(BooleanOpNode("OR", nodes))
+        
+        # --- FIX: Use a consistent variable name 'lang_nodes' ---
         if fields.languages:
-            nodes = [FieldedSearchNode("language", TermNode(lang.lower())) for lang in fields.languages]
-            if len(nodes) == 1: other_field_nodes.append(nodes[0])
-            elif len(nodes) > 1: other_field_nodes.append(BooleanOpNode("OR", nodes))
+            lang_nodes = [FieldedSearchNode("language", TermNode(lang.lower())) for lang in fields.languages]
+            if len(lang_nodes) == 1: other_field_nodes.append(lang_nodes[0])
+            elif len(lang_nodes) > 1: other_field_nodes.append(BooleanOpNode("OR", lang_nodes))
+        
         if fields.status: other_field_nodes.append(FieldedSearchNode("status", TermNode(fields.status.lower())))
         if fields.patentType: other_field_nodes.append(FieldedSearchNode("patent_type", TermNode(fields.patentType.lower())))
         if fields.litigation == "YES": other_field_nodes.append(TermNode("is:litigated"))
@@ -112,18 +115,21 @@ def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
         url_q_params = []
 
         for ast_root in ast_groups:
-            # 1. Generate the unambiguous, explicit query string (e.g., "(a AND a) AND a")
+            # 1. Generate the unambiguous, explicit query string (e.g., "a AND a" or "a+b")
             explicit_string = generator.generate(ast_root)
             if not explicit_string:
                 continue
 
-            # 2. Convert to Google's implicit syntax (e.g., "(a a) a")
+            # 2. Convert to Google's implicit syntax (e.g., "a a" or "a+b")
             google_syntax_string = explicit_string.replace(" AND ", " ")
             
-            # 3. For the URL, use the Google syntax string directly
-            url_q_params.append(f"q={quote_plus(google_syntax_string)}")
+            # 3. For the URL, use quote_plus to safely encode all special characters.
+            encoded_param = quote_plus(google_syntax_string)
+            # 4. Per the specific request, ensure '+' becomes '%2b' (lowercase b).
+            final_url_param = encoded_param.replace('%2B', '%2b')
+            url_q_params.append(f"q={final_url_param}")
 
-            # 4. For the display, apply the final wrapping rule
+            # 5. For the display, apply the final wrapping rule
             display_string_for_group = google_syntax_string
             # Wrap in parentheses if the string doesn't already contain any.
             if '(' not in display_string_for_group and not display_string_for_group.startswith("PARSE_ERROR"):

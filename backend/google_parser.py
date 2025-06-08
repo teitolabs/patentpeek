@@ -167,9 +167,9 @@ class GoogleQueryParser:
 
         all_ops_keywords = op_and | op_or | op_not_keyword | op_xor | op_prox_explicit
 
-        # A search term is a word that is not an operator keyword.
-        # The '+' is included here to treat 'a+b' as a single term.
-        searchTermAtomChars = pp.alphanums + "-_/.?$*#_+" 
+        # --- FIX: Expanded character set to include user-specified special characters ---
+        searchTermAtomChars = pp.alphanums + "-_/.?$*#_+%&=," 
+        
         searchTermWord = ~all_ops_keywords + pp.Word(searchTermAtomChars)
         
         term_as_value_node = searchTermWord.copy().set_parse_action(lambda s,l,t: TermNode(t[0]))
@@ -206,8 +206,6 @@ class GoogleQueryParser:
         
         litigated_term = pp.CaselessKeyword("is:litigated").set_parse_action(lambda t: TermNode(t[0]))
 
-        # An "atom" is the fundamental building block of a query.
-        # The parser will correctly identify implicit ANDs between these atoms.
         atom = (
             fielded_search_paren_type |
             fielded_search_simple_type |
@@ -224,8 +222,6 @@ class GoogleQueryParser:
             (op_neg_prefix, 1, pp.OpAssoc.RIGHT, self._build_ast_from_infix_tokens),
             (op_not_keyword, 1, pp.OpAssoc.RIGHT, self._build_ast_from_infix_tokens),
             (op_prox_explicit, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
-            # This is the key: `pp.Empty()` between atoms implies an AND operator.
-            # This correctly handles `a (b)`, `(a) b`, and `(a)(b)` as long as there is whitespace.
             (pp.Empty(), 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens), 
             (op_and, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
             (op_xor, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
