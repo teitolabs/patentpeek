@@ -92,8 +92,12 @@ class GoogleQueryParser:
                 i += 2 
             
             elif isinstance(operator_str_or_node, ASTNode): # Implicit AND
-                right_operand_node = operator_str_or_node 
-                current_ast_node = BooleanOpNode("AND", [current_ast_node, right_operand_node])
+                right_operand_node = operator_str_or_node
+                # --- FIX: Flatten consecutive implicit ANDs for a cleaner AST ---
+                if isinstance(current_ast_node, BooleanOpNode) and current_ast_node.operator == "AND":
+                    current_ast_node.operands.append(right_operand_node)
+                else:
+                    current_ast_node = BooleanOpNode("AND", [current_ast_node, right_operand_node])
                 i += 1 
             else:
                 raise pp.ParseException(instring, loc, f"Unexpected item in operation list: {operator_str_or_node!r}")
@@ -158,16 +162,12 @@ class GoogleQueryParser:
         LPAR, RPAR, QUOTE = map(pp.Suppress, "()\"")
         
         FIELD_OP = pp.Suppress(":") | pp.Suppress("=")
-
-        op_and = pp.CaselessKeyword("AND")
-        op_or = pp.CaselessKeyword("OR")
+        
         op_not_keyword = pp.CaselessKeyword("NOT")
-        op_xor = pp.CaselessKeyword("XOR")
         op_prox_explicit = pp.Regex(r"(ADJ|NEAR|WITH|SAME)\d*", re.I)
 
-        all_ops_keywords = op_and | op_or | op_not_keyword | op_xor | op_prox_explicit
+        all_ops_keywords = op_not_keyword | op_prox_explicit
 
-        # --- FIX: Expanded character set to include user-specified special characters ---
         searchTermAtomChars = pp.alphanums + "-_/.?$*#_+%&=," 
         
         searchTermWord = ~all_ops_keywords + pp.Word(searchTermAtomChars)
@@ -223,9 +223,6 @@ class GoogleQueryParser:
             (op_not_keyword, 1, pp.OpAssoc.RIGHT, self._build_ast_from_infix_tokens),
             (op_prox_explicit, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
             (pp.Empty(), 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens), 
-            (op_and, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
-            (op_xor, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens),
-            (op_or, 2, pp.OpAssoc.LEFT, self._build_ast_from_infix_tokens)
         ])
         
         return self.current_expr_parser

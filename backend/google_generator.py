@@ -1,4 +1,5 @@
 
+
 # google_generator.py
 from ast_nodes import (
     ASTNode, QueryRootNode, TermNode, BooleanOpNode, ProximityOpNode,
@@ -7,8 +8,11 @@ from ast_nodes import (
 from typing import Optional, Dict
 import re
 
+# --- FIX: Removed AND/OR from the regex. ---
+# This regex now only includes keywords that are *always* operators in Google's syntax (like NOT, NEAR).
+# Since the parser now treats "and" and "or" as regular terms, we don't want the generator to quote them.
 GOOGLE_OPERATOR_KEYWORDS_REGEX = re.compile(
-    r'^\s*(AND|OR|NOT|NEAR\d*|ADJ\d*|WITH|SAME)\s*$', 
+    r'^\s*(NOT|NEAR\d*|ADJ\d*|WITH|SAME)\s*$', 
     re.IGNORECASE
 )
 
