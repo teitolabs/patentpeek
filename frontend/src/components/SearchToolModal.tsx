@@ -1,7 +1,9 @@
 // --- START OF FILE SearchToolModal.tsx ---
 import React, { useState, useEffect } from 'react';
-import { X, HelpCircle, Columns, BarChart2, Settings, FlaskConical as FlaskConicalIcon, SlidersHorizontal, Globe2, AlignLeft, ListOrdered } from 'lucide-react';
+// FIX: Removed unused 'Columns' icon
+import { X, HelpCircle, BarChart2, Settings, FlaskConical as FlaskConicalIcon, SlidersHorizontal, Globe2, AlignLeft, ListOrdered } from 'lucide-react';
 
+// FIX: Changed the import path from './ChatInput' to the correct source './searchToolTypes'
 import {
     SearchCondition,
     SearchToolType,
@@ -11,12 +13,12 @@ import {
     MeasureSearchData,
     NumbersSearchData,
     ChemistryOperator,
-    ChemistryUiOperatorLabel, // Import UI Label type
+    ChemistryUiOperatorLabel,
     ChemistryDocScope,
     QueryScope,
     TermOperator,
     DocumentNumberType
-} from './ChatInput';
+} from './searchToolTypes';
 
 export type ModalToolData =
   | InternalTextSearchData
