@@ -3,10 +3,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PatentFormat } from '../types';
 import {
     XCircle, Type as TypeIcon, Wand2, Link as LinkIcon,
-    FlaskConical, Ruler, Hash, Building2 as Building2Icon,
     AlertCircle
 } from 'lucide-react';
-import SearchToolModal, { ModalToolData } from './SearchToolModal';
+// REMOVED: SearchToolModal and ModalToolData import
 import {
     SearchCondition, SearchToolType, TextSearchCondition, InternalTextSearchData,
     PatentOffice, Language, QueryScope
@@ -70,8 +69,8 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 function GoogleGIcon(): React.ReactElement { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.35 11.1H12.18V13.4H18.2C17.96 15.39 16.48 16.97 14.54 16.97C12.23 16.97 10.36 15.09 10.36 12.78C10.36 10.47 12.23 8.59 14.54 8.59C15.63 8.59 16.59 8.98 17.34 9.68L19.03 8.01C17.65 6.74 16.18 6 14.54 6C10.98 6 8.25 8.73 8.25 12.29C8.25 15.85 10.98 18.58 14.54 18.58C17.63 18.58 19.83 16.59 20.44 13.89H14.54V11.1H21.35Z" fill="#4285F4"/></svg>; }
-function getConditionTypeIcon(type: SearchToolType): React.ReactElement { switch (type) { case 'TEXT': return <TypeIcon size={18} />; case 'CLASSIFICATION': return <Hash size={18} />; case 'CHEMISTRY': return <FlaskConical size={18} />; case 'MEASURE': return <Ruler size={18} />; case 'NUMBERS': return <Building2Icon size={18} />; default: return <TypeIcon size={18} />; } }
-const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactNode }> = [ { value: 'google', label: 'Google', icon: <GoogleGIcon /> }, { value: 'uspto', label: 'USPTO', icon: <Building2Icon size={18} /> }, ];
+// REMOVED: getConditionTypeIcon function as it's no longer needed.
+const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactNode }> = [ { value: 'google', label: 'Google', icon: <GoogleGIcon /> }, { value: 'uspto', label: 'USPTO', icon: <TypeIcon size={18} /> }, ];
 
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -101,7 +100,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setQueryLinkHref('#');
       return;
     }
-    const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
+    // Filter to ensure only TEXT conditions are sent, as a safeguard.
+    const textConditions = searchConditions.filter(c => c.type === 'TEXT');
+    const result = await generateQuery(activeFormat, textConditions, googleLikeFields, usptoSpecificSettings);
     isInternalUpdate.current = true;
     onMainInputChange(result.queryStringDisplay);
     setQueryLinkHref(result.url);
@@ -123,13 +124,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
         try {
             const result = await parseQuery(activeFormat, debouncedQueryForParsing);
             isInternalUpdate.current = true;
-            const newSearchConditions = result.searchConditions.map(sc => {
-                if (sc.type === 'TEXT') {
-                    const textData = sc.data as unknown as { text: string; selectedScopes: string[]; termOperator: string };
-                    return { ...sc, data: { ...textData, selectedScopes: new Set(textData.selectedScopes) as Set<QueryScope>, error: null } };
-                }
-                return sc;
+            
+            // FIX: Filter incoming conditions to only handle TEXT types from now on.
+            const textOnlyConditions = result.searchConditions.filter(sc => sc.type === 'TEXT');
+
+            const newSearchConditions = textOnlyConditions.map(sc => {
+                const textData = sc.data as unknown as { text: string; selectedScopes: string[]; termOperator: string };
+                return { ...sc, data: { ...textData, selectedScopes: new Set(textData.selectedScopes) as Set<QueryScope>, error: null } };
             });
+
             setSearchConditions(manageSearchConditionInputs(newSearchConditions as SearchCondition[]));
             setGoogleLikeFields(result.googleLikeFields);
             setUsptoSpecificSettings(result.usptoSpecificSettings);
@@ -143,6 +146,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [debouncedQueryForParsing, activeFormat, createDefaultTextCondition, onMainInputChange]);
 
   const manageSearchConditionInputs = (conditions: SearchCondition[]): SearchCondition[] => {
+    // This function now implicitly only works with TextSearchConditions
     let filteredConditions = conditions.filter((cond, index) => {
         if (cond.type === 'TEXT' && (cond.data as InternalTextSearchData).text.trim() === '') {
             const anotherEmptyExists = conditions.slice(index + 1).some(c => c.type === 'TEXT' && (c.data as InternalTextSearchData).text.trim() === '');
@@ -151,7 +155,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         return true;
     });
     const lastCondition = filteredConditions[filteredConditions.length - 1];
-    const needsEmptyBox = !lastCondition || lastCondition.type !== 'TEXT' || (lastCondition.data as InternalTextSearchData).text.trim() !== '';
+    const needsEmptyBox = !lastCondition || (lastCondition.data as InternalTextSearchData).text.trim() !== '';
     if (needsEmptyBox) {
         filteredConditions.push(createDefaultTextCondition());
     }
@@ -171,15 +175,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   const onFieldChange = <K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => setGoogleLikeFields(prev => ({ ...prev, [field]: value }));
   
-  const handleUpdateSearchConditionFromModal = (conditionId: string, newType: SearchToolType, newData: ModalToolData) => { 
-    setSearchConditions(prev => {
-        const updated = prev.map(sc => sc.id === conditionId ? { ...sc, type: newType, data: newData as any } : sc);
-        triggerQueryGeneration();
-        return manageSearchConditionInputs(updated);
-    });
-    setIsSearchToolModalOpen(false); 
-    setEditingCondition(undefined);
-  };
+  // REMOVED: handleUpdateSearchConditionFromModal function
   
   const updateSearchConditionText = (id: string, newText: string) => {
       setSearchConditions(prev => {
@@ -208,45 +204,33 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // SIMPLIFIED: This function now only needs to render the text input.
   const renderSearchConditionRow = (condition: SearchCondition, canBeRemoved: boolean) => {
-    const isTextEmpty = condition.type === 'TEXT' && (condition.data as InternalTextSearchData).text.trim() === '';
-    
-    if (condition.type === 'TEXT') {
-      const textData = condition.data as InternalTextSearchData;
-      const hasError = !!textData.error;
+    // This component now only expects TEXT conditions.
+    if (condition.type !== 'TEXT') return null;
 
-      return (
-        <div className={`flex items-center w-full ${hasError ? 'ring-2 ring-red-500 rounded-md' : ''}`}>
-            <input 
-              type="text" 
-              value={textData.text} 
-              onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} 
-              onKeyDown={handleTextConditionKeyDown}
-              onBlur={triggerQueryGeneration}
-              placeholder="Type here to add search term..." 
-              className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" 
-            />
-            {hasError && (
-              <div className="p-1 text-red-600" title={textData.error!}>
-                <AlertCircle size={16} />
-              </div>
-            )}
-            {canBeRemoved && !isTextEmpty && ( <button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button> )}
-        </div>
-      );
-    }
-    let displayText = `${condition.type.charAt(0).toUpperCase() + condition.type.slice(1).toLowerCase()}: `;
-     switch (condition.type) {
-        case 'CLASSIFICATION': displayText += `${(condition.data as any).cpc || "N/A"}`; break;
-        case 'CHEMISTRY': displayText += `${(condition.data as any).term || "N/A"}`; break;
-        case 'MEASURE': displayText += `${(condition.data as any).measurements || "N/A"}`; break;
-        case 'NUMBERS': displayText += `${(condition.data as any).doc_ids_text || "N/A"}`; break;
-     }
+    const textData = condition.data as InternalTextSearchData;
+    const hasError = !!textData.error;
+    const isTextEmpty = textData.text.trim() === '';
+
     return (
-        <div className="flex items-center justify-between w-full">
-            <span className="text-sm p-2 flex-grow truncate" title={displayText}>{displayText}</span>
-            {canBeRemoved && ( <button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button> )}
-        </div>
+      <div className={`flex items-center w-full ${hasError ? 'ring-2 ring-red-500 rounded-md' : ''}`}>
+          <input 
+            type="text" 
+            value={textData.text} 
+            onChange={(e) => updateSearchConditionText(condition.id, e.target.value)} 
+            onKeyDown={handleTextConditionKeyDown}
+            onBlur={triggerQueryGeneration}
+            placeholder="Type here to add search term..." 
+            className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" 
+          />
+          {hasError && (
+            <div className="p-1 text-red-600" title={textData.error!}>
+              <AlertCircle size={16} />
+            </div>
+          )}
+          {canBeRemoved && !isTextEmpty && ( <button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button> )}
+      </div>
     );
   };
 
@@ -254,8 +238,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
   const inventorInputRef = useRef<HTMLInputElement>(null);
   const assigneeInputRef = useRef<HTMLInputElement>(null);
-  const [isSearchToolModalOpen, setIsSearchToolModalOpen] = useState(false);
-  const [editingCondition, setEditingCondition] = useState<SearchCondition | undefined>(undefined);
+  // REMOVED: State for SearchToolModal
   const [isPatentOfficeDropdownOpen, setIsPatentOfficeDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const patentOfficeRef = useRef<HTMLDivElement>(null);
@@ -293,11 +276,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
             <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
               {searchConditions.map((condition: SearchCondition) => {
-                 const canBeRemoved = searchConditions.length > 1 || (condition.type !== 'TEXT' || (condition.data as InternalTextSearchData).text.trim() !== '');
+                 // SIMPLIFIED: The logic for canBeRemoved is simpler as we only have one type.
+                 const canBeRemoved = searchConditions.length > 1 || (condition.type === 'TEXT' && (condition.data as InternalTextSearchData).text.trim() !== '');
                  return (
-                     <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-stretch"> 
-                        <div className="flex-grow min-w-0 border-r border-gray-300 flex items-center">{renderSearchConditionRow(condition, canBeRemoved)}</div>
-                        <button onClick={() => { setIsSearchToolModalOpen(true); setEditingCondition(condition); }} className="p-2 text-gray-600 hover:bg-gray-100 rounded-r-md flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0" title={`Change tool type (current: ${condition.type})`} style={{ minWidth: '40px' }}>{getConditionTypeIcon(condition.type)}</button>
+                     // SIMPLIFIED: Removed the outer div structure that accommodated the tool button.
+                     <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center"> 
+                        {renderSearchConditionRow(condition, canBeRemoved)}
                      </div>
                  );
               })}
@@ -309,7 +293,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         </>
       )}
-      {isSearchToolModalOpen && editingCondition && ( <SearchToolModal isOpen={isSearchToolModalOpen} onClose={() => { setIsSearchToolModalOpen(false); setEditingCondition(undefined); }} onUpdateCondition={handleUpdateSearchConditionFromModal} initialCondition={editingCondition} /> )}
+      {/* REMOVED: SearchToolModal rendering */}
     </div>
   );
 };
