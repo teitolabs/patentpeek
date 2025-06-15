@@ -1,4 +1,3 @@
-
 # /backend/models.py
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional, Dict, Any, Literal
@@ -6,46 +5,21 @@ import uuid
 
 # --- Models for Structured Search Conditions (from frontend) ---
 
+# Simplified to only include 'text' as other fields were unused.
 class TextSearchData(BaseModel):
     type: Literal["TEXT"]
     text: str
-    selectedScopes: List[str]
-    termOperator: str
 
-class ClassificationSearchData(BaseModel):
-    type: Literal["CLASSIFICATION"]
-    cpc: str
-    option: Literal["CHILDREN", "EXACT"]
+# REMOVED: ClassificationSearchData, ChemistrySearchData, MeasureSearchData, NumbersSearchData
+# as they are part of an orphaned feature.
 
-class ChemistrySearchData(BaseModel):
-    type: Literal["CHEMISTRY"]
-    term: str
-    operator: str
-    uiOperatorLabel: str
-    docScope: str
-
-class MeasureSearchData(BaseModel):
-    type: Literal["MEASURE"]
-    measurements: str
-    units_concepts: str
-
-class NumbersSearchData(BaseModel):
-    type: Literal["NUMBERS"]
-    doc_ids_text: str
-    number_type: Literal["APPLICATION", "PUBLICATION", "EITHER"]
-    country_restriction: str
-    preferred_countries_order: str
-
+# The SearchCondition model is now greatly simplified.
+# The `data` field no longer needs to be a Union or use a discriminator
+# as only one type of condition data is now supported.
 class SearchCondition(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: Literal["TEXT", "CLASSIFICATION", "CHEMISTRY", "MEASURE", "NUMBERS"]
-    data: Union[
-        TextSearchData,
-        ClassificationSearchData,
-        ChemistrySearchData,
-        MeasureSearchData,
-        NumbersSearchData,
-    ] = Field(..., discriminator='type')
+    type: Literal["TEXT"]
+    data: TextSearchData
 
 # --- Models for Form Fields ---
 
@@ -89,6 +63,8 @@ class ParseRequest(BaseModel):
     format: Literal["google", "uspto"]
     queryString: str
 
+# ParseResponse remains as-is for now, as a future parse implementation
+# might need to populate a more complex structure.
 class ParseResponse(BaseModel):
     searchConditions: List[SearchCondition]
     googleLikeFields: GoogleLikeSearchFields

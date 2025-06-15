@@ -27,49 +27,36 @@ export type Language =
 
 export type PatentStatus = 'GRANT' | 'APPLICATION' | '';
 export type PatentType = 'PATENT' | 'DESIGN' | 'PLANT' | 'REISSUE' | 'SIR' | 'UTILITY' | 'PROVISIONAL' | 'DEFENSIVE_PUBLICATION' | 'STATUTORY_INVENTION_REGISTRATION' | 'OTHER' | '';
-export type QueryScope = 'TI' | 'AB' | 'CL' | 'CPC' | 'FT';
-export type TermOperator = 'ALL' | 'EXACT' | 'ANY' | 'NONE';
-export type SearchToolType = 'TEXT' | 'CLASSIFICATION' | 'CHEMISTRY' | 'MEASURE' | 'NUMBERS';
 export type LitigationStatus = 'YES' | 'NO' | '';
 
-export interface BaseSearchCondition { id: string; type: SearchToolType; }
+// The only active search tool type is TEXT.
+export type SearchToolType = 'TEXT';
+
+export interface BaseSearchCondition {
+  id: string;
+  type: SearchToolType;
+}
+
+// Simplified data structure for a text search condition.
+// Scopes and term operators have been removed as they are no longer used.
 export interface InternalTextSearchData {
   text: string;
-  selectedScopes: Set<QueryScope>;
-  termOperator: TermOperator;
   error?: string | null;
 }
-export interface TextSearchCondition extends BaseSearchCondition { type: 'TEXT'; data: InternalTextSearchData; }
-export interface ClassificationSearchData { cpc: string; option: 'CHILDREN' | 'EXACT'; }
-export interface ClassificationSearchCondition extends BaseSearchCondition { type: 'CLASSIFICATION'; data: ClassificationSearchData; }
 
-export type ChemistryOperator = 'EXACT' | 'SIMILAR' | 'SUBSTRUCTURE' | 'SMARTS';
-export type ChemistryUiOperatorLabel = 'Exact' | 'Exact Batch' | 'Similar' | 'Substructure' | 'Substructure (SMARTS)';
-export type ChemistryDocScope = 'FULL' | 'CLAIMS_ONLY';
-export interface ChemistrySearchData { term: string; operator: ChemistryOperator; uiOperatorLabel: ChemistryUiOperatorLabel; docScope: ChemistryDocScope; }
-export interface ChemistrySearchCondition extends BaseSearchCondition { type: 'CHEMISTRY'; data: ChemistrySearchData; }
-
-export interface MeasureSearchData { measurements: string; units_concepts: string; }
-export interface MeasureSearchCondition extends BaseSearchCondition { type: 'MEASURE'; data: MeasureSearchData; }
-
-export type DocumentNumberType = 'APPLICATION' | 'PUBLICATION' | 'EITHER';
-export interface NumbersSearchData {
-  doc_ids_text: string;
-  number_type: DocumentNumberType;
-  country_restriction: string;
-  preferred_countries_order: string;
+export interface TextSearchCondition extends BaseSearchCondition {
+  type: 'TEXT';
+  data: InternalTextSearchData;
 }
-export interface NumbersSearchCondition extends BaseSearchCondition { type: 'NUMBERS'; data: NumbersSearchData; }
 
-export type SearchCondition =
-  | TextSearchCondition
-  | ClassificationSearchCondition
-  | ChemistrySearchCondition
-  | MeasureSearchCondition
-  | NumbersSearchCondition;
+// The SearchCondition is now only ever a TextSearchCondition.
+export type SearchCondition = TextSearchCondition;
 
+// This payload is kept for clarity but is now simpler.
 export interface BackendSearchConditionPayload {
   id: string;
   type: SearchToolType;
-  data: any;
+  data: {
+    text: string;
+  };
 }

@@ -1,4 +1,3 @@
-
 # /backend/services.py
 from typing import List, Dict, Any, Optional, Tuple
 from fastapi import HTTPException
@@ -44,7 +43,9 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
     ast_nodes: List[ASTNode] = []
     top_level_params: List[UrlParam] = []
     
-    # 1. Process TEXT conditions and Classifications into the main AST list
+    # 1. Process TEXT conditions into the main AST list.
+    # Other condition types like CLASSIFICATION have been removed from the UI
+    # and are no longer sent as structured data.
     if req.searchConditions:
         for condition in req.searchConditions:
             if condition.type == "TEXT":
@@ -52,16 +53,14 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
                 text_input = text_data.text.strip()
                 if not text_input:
                     continue
+                # The text from each search term box is parsed into an AST
                 parsed_ast_root = TEXT_BOX_PARSER.parse(text_input)
+                # Ignore empty results from the parser
                 if not isinstance(parsed_ast_root.query, TermNode) or parsed_ast_root.query.value != "__EMPTY__":
                     ast_nodes.append(parsed_ast_root.query)
             
-            elif condition.type == "CLASSIFICATION":
-                cpc_data = condition.data
-                if not cpc_data.cpc.strip():
-                    continue
-                cpc_ast_node = ClassificationNode("CPC", cpc_data.cpc.strip(), (cpc_data.option == "CHILDREN"))
-                ast_nodes.append(FieldedSearchNode("cpc", cpc_ast_node, "CPC"))
+            # REMOVED: elif block for CLASSIFICATION as it's no longer a structured input.
+            # The parser can still handle user-typed CPC queries like "CPC:H01L...".
 
     # 2. Process all Google-like fields as top-level parameters
     if req.googleLikeFields:
@@ -102,7 +101,6 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
         if fields.patentType:
             top_level_params.append(UrlParam("type", fields.patentType.upper()))
         
-        # --- FIX: Handle both YES and NO cases for litigation ---
         if fields.litigation == "YES":
             top_level_params.append(UrlParam("litigation", "YES"))
         elif fields.litigation == "NO":

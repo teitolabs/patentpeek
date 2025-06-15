@@ -5,10 +5,9 @@ import {
     XCircle, Type as TypeIcon, Wand2, Link as LinkIcon,
     AlertCircle
 } from 'lucide-react';
-// REMOVED: SearchToolModal and ModalToolData import
 import {
-    SearchCondition, SearchToolType, TextSearchCondition, InternalTextSearchData,
-    PatentOffice, Language, QueryScope
+    SearchCondition, TextSearchCondition, InternalTextSearchData,
+    PatentOffice, Language
 } from './searchToolTypes';
 
 import GooglePatentsFields, { GoogleLikeSearchFields } from './googlePatents/GooglePatentsFields';
@@ -69,7 +68,6 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 function GoogleGIcon(): React.ReactElement { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.35 11.1H12.18V13.4H18.2C17.96 15.39 16.48 16.97 14.54 16.97C12.23 16.97 10.36 15.09 10.36 12.78C10.36 10.47 12.23 8.59 14.54 8.59C15.63 8.59 16.59 8.98 17.34 9.68L19.03 8.01C17.65 6.74 16.18 6 14.54 6C10.98 6 8.25 8.73 8.25 12.29C8.25 15.85 10.98 18.58 14.54 18.58C17.63 18.58 19.83 16.59 20.44 13.89H14.54V11.1H21.35Z" fill="#4285F4"/></svg>; }
-// REMOVED: getConditionTypeIcon function as it's no longer needed.
 const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactNode }> = [ { value: 'google', label: 'Google', icon: <GoogleGIcon /> }, { value: 'uspto', label: 'USPTO', icon: <TypeIcon size={18} /> }, ];
 
 
@@ -77,7 +75,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   value: mainQueryValue, activeFormat, onTabChange, onMainInputChange,
 }) => {
   const createDefaultTextCondition = useCallback((): TextSearchCondition => ({
-    id: crypto.randomUUID(), type: 'TEXT', data: { text: '', selectedScopes: new Set(['FT']), termOperator: 'ALL', error: null }
+    id: crypto.randomUUID(), type: 'TEXT', data: { text: '', error: null }
   }), []);
 
   const [searchConditions, setSearchConditions] = useState<SearchCondition[]>([createDefaultTextCondition()]);
@@ -100,9 +98,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setQueryLinkHref('#');
       return;
     }
-    // Filter to ensure only TEXT conditions are sent, as a safeguard.
-    const textConditions = searchConditions.filter(c => c.type === 'TEXT');
-    const result = await generateQuery(activeFormat, textConditions, googleLikeFields, usptoSpecificSettings);
+    
+    const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
     isInternalUpdate.current = true;
     onMainInputChange(result.queryStringDisplay);
     setQueryLinkHref(result.url);
@@ -125,15 +122,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
             const result = await parseQuery(activeFormat, debouncedQueryForParsing);
             isInternalUpdate.current = true;
             
-            // FIX: Filter incoming conditions to only handle TEXT types from now on.
-            const textOnlyConditions = result.searchConditions.filter(sc => sc.type === 'TEXT');
+            // The backend now only returns TEXT conditions, so no filtering is needed.
+            // Map the incoming data to the frontend's data structure.
+            const newSearchConditions = result.searchConditions.map(sc => ({
+                ...sc,
+                data: { ...sc.data, error: null }
+            }));
 
-            const newSearchConditions = textOnlyConditions.map(sc => {
-                const textData = sc.data as unknown as { text: string; selectedScopes: string[]; termOperator: string };
-                return { ...sc, data: { ...textData, selectedScopes: new Set(textData.selectedScopes) as Set<QueryScope>, error: null } };
-            });
-
-            setSearchConditions(manageSearchConditionInputs(newSearchConditions as SearchCondition[]));
+            setSearchConditions(manageSearchConditionInputs(newSearchConditions));
             setGoogleLikeFields(result.googleLikeFields);
             setUsptoSpecificSettings(result.usptoSpecificSettings);
         } catch (error) {
@@ -146,16 +142,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [debouncedQueryForParsing, activeFormat, createDefaultTextCondition, onMainInputChange]);
 
   const manageSearchConditionInputs = (conditions: SearchCondition[]): SearchCondition[] => {
-    // This function now implicitly only works with TextSearchConditions
     let filteredConditions = conditions.filter((cond, index) => {
-        if (cond.type === 'TEXT' && (cond.data as InternalTextSearchData).text.trim() === '') {
-            const anotherEmptyExists = conditions.slice(index + 1).some(c => c.type === 'TEXT' && (c.data as InternalTextSearchData).text.trim() === '');
+        if (cond.type === 'TEXT' && cond.data.text.trim() === '') {
+            const anotherEmptyExists = conditions.slice(index + 1).some(c => c.type === 'TEXT' && c.data.text.trim() === '');
             return !anotherEmptyExists;
         }
         return true;
     });
     const lastCondition = filteredConditions[filteredConditions.length - 1];
-    const needsEmptyBox = !lastCondition || (lastCondition.data as InternalTextSearchData).text.trim() !== '';
+    const needsEmptyBox = !lastCondition || lastCondition.data.text.trim() !== '';
     if (needsEmptyBox) {
         filteredConditions.push(createDefaultTextCondition());
     }
@@ -175,14 +170,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   const onFieldChange = <K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => setGoogleLikeFields(prev => ({ ...prev, [field]: value }));
   
-  // REMOVED: handleUpdateSearchConditionFromModal function
-  
   const updateSearchConditionText = (id: string, newText: string) => {
       setSearchConditions(prev => {
           const updated = prev.map(sc => {
               if (sc.id === id && sc.type === 'TEXT') {
                   const error = validateSearchTermText(newText);
-                  return { ...sc, data: { ...(sc.data as InternalTextSearchData), text: newText, error } };
+                  return { ...sc, data: { ...sc.data, text: newText, error } };
               }
               return sc;
           });
@@ -204,12 +197,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  // SIMPLIFIED: This function now only needs to render the text input.
   const renderSearchConditionRow = (condition: SearchCondition, canBeRemoved: boolean) => {
-    // This component now only expects TEXT conditions.
-    if (condition.type !== 'TEXT') return null;
-
-    const textData = condition.data as InternalTextSearchData;
+    const textData = condition.data;
     const hasError = !!textData.error;
     const isTextEmpty = textData.text.trim() === '';
 
@@ -238,7 +227,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
   const inventorInputRef = useRef<HTMLInputElement>(null);
   const assigneeInputRef = useRef<HTMLInputElement>(null);
-  // REMOVED: State for SearchToolModal
   const [isPatentOfficeDropdownOpen, setIsPatentOfficeDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const patentOfficeRef = useRef<HTMLDivElement>(null);
@@ -276,10 +264,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
             <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
               {searchConditions.map((condition: SearchCondition) => {
-                 // SIMPLIFIED: The logic for canBeRemoved is simpler as we only have one type.
-                 const canBeRemoved = searchConditions.length > 1 || (condition.type === 'TEXT' && (condition.data as InternalTextSearchData).text.trim() !== '');
+                 const canBeRemoved = searchConditions.length > 1 || condition.data.text.trim() !== '';
                  return (
-                     // SIMPLIFIED: Removed the outer div structure that accommodated the tool button.
                      <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center"> 
                         {renderSearchConditionRow(condition, canBeRemoved)}
                      </div>
@@ -293,7 +279,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         </>
       )}
-      {/* REMOVED: SearchToolModal rendering */}
     </div>
   );
 };

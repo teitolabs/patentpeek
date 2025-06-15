@@ -1,6 +1,6 @@
 // src/components/googlePatents/googleApi.ts
 import { PatentFormat } from '../../types';
-import { SearchCondition, TextSearchCondition, QueryScope, SearchToolType } from '../searchToolTypes';
+import { SearchCondition, TextSearchCondition, SearchToolType } from '../searchToolTypes';
 import { GoogleLikeSearchFields } from './GooglePatentsFields';
 import { UsptoSpecificSettings } from '../usptoPatents/usptoQueryBuilder';
 
@@ -10,19 +10,12 @@ import { UsptoSpecificSettings } from '../usptoPatents/usptoQueryBuilder';
 interface TextSearchDataPayload {
   type: "TEXT";
   text: string;
-  selectedScopes: QueryScope[]; // Use an Array instead of a Set
-  termOperator: string;
 }
-
-// You can define other payloads if they also have non-JSON-friendly types
-// For now, only TextSearchData needs a special payload type.
-
-type SearchConditionDataPayload = TextSearchDataPayload | SearchCondition['data'];
 
 interface SearchConditionPayload {
   id: string;
   type: SearchToolType;
-  data: SearchConditionDataPayload;
+  data: TextSearchDataPayload;
 }
 
 // --- END: Payload-Specific Types ---
@@ -54,28 +47,18 @@ export const generateQuery = async (
   googleLikeFields: GoogleLikeSearchFields,
   usptoSpecificSettings: UsptoSpecificSettings,
 ): Promise<GenerateResponse> => {
-  // FIX: Process the state into a JSON-compatible payload that matches the backend models.
+  // Process the state into a JSON-compatible payload.
+  // Since only TEXT conditions are supported, this is now simpler.
   const processedSearchConditions: SearchConditionPayload[] = searchConditions.map(condition => {
-    if (condition.type === 'TEXT') {
       const textData = condition.data as TextSearchCondition['data'];
       return {
-        ...condition,
+        id: condition.id,
+        type: 'TEXT',
         data: {
           type: 'TEXT',
           text: textData.text,
-          selectedScopes: Array.from(textData.selectedScopes), // Convert Set to Array
-          termOperator: textData.termOperator,
         }
       };
-    }
-    // For other condition types, just add the discriminator to the data object
-    return {
-      ...condition,
-      data: {
-        ...condition.data,
-        type: condition.type
-      }
-    };
   });
 
   try {
