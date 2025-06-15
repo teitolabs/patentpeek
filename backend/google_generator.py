@@ -1,5 +1,3 @@
-
-
 # google_generator.py
 from ast_nodes import (
     ASTNode, QueryRootNode, TermNode, BooleanOpNode, ProximityOpNode,
@@ -94,6 +92,7 @@ class ASTToGoogleQueryGenerator:
             current_node_op_type_str = "TERM"
             if node.value == "__EMPTY__": return ""
             if node.is_phrase: res_str = f'"{node.value}"'
+            # --- FIX: We now check a more specific regex so that "AND" and "OR" are NOT quoted ---
             elif GOOGLE_OPERATOR_KEYWORDS_REGEX.match(node.value): res_str = f'"{node.value}"'
             else: res_str = node.value
         
@@ -119,7 +118,9 @@ class ASTToGoogleQueryGenerator:
                 if not op_strs_filtered: return ""
                 if len(op_strs_filtered) == 1: return op_strs_filtered[0]
                 
-                joiner = f" {operator_upper} "
+                # --- THIS IS THE CORE FIX ---
+                # Use a space for AND, otherwise use the explicit operator.
+                joiner = " " if operator_upper == "AND" else f" {operator_upper} "
                 res_str = joiner.join(op_strs_filtered)
 
         elif isinstance(node, ProximityOpNode):

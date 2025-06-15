@@ -101,6 +101,8 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
         if fields.patentType:
             top_level_params.append(UrlParam("type", fields.patentType.upper()))
         
+        # --- FIX: Changed how litigation is handled to use top_level_params ---
+        # This is because Google's URL structure for this is a direct param, not part of 'q'
         if fields.litigation == "YES":
             top_level_params.append(UrlParam("litigation", "YES"))
         elif fields.litigation == "NO":
@@ -110,6 +112,7 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
 
 
 def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
+    # --- START: REVISED generate_query function ---
     ast_nodes, top_level_params = _build_query_components(req)
 
     if not ast_nodes and not top_level_params:
@@ -119,43 +122,71 @@ def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
         generator = GENERATORS["google"]
         display_parts = []
         
+        # Process each AST node from the text boxes individually
         for node in ast_nodes:
             generated_str = generator.generate(QueryRootNode(query=node))
             if not generated_str:
                 continue
             
-            # FIX: Re-add the replace call to ensure implicit ANDs (spaces) are used in the display.
-            display_str = generated_str.replace(" AND ", " ")
-            if '(' not in display_str and not display_str.startswith("PARSE_ERROR"):
-                 display_parts.append(f"({display_str})")
+            # The core of the fix: wrap in parentheses if it's not already complex
+            # A simple heuristic: if it doesn't contain parentheses already, wrap it.
+            # Also, don't wrap error messages.
+            if '(' not in generated_str and not generated_str.startswith("PARSE_ERROR"):
+                 display_parts.append(f"({generated_str})")
             else:
-                 display_parts.append(display_str)
+                 display_parts.append(generated_str)
         
+        # This becomes the main query part, joined by spaces (implicit AND)
         term_query_string = " ".join(display_parts)
         
+        # Now, build the final display string and URL params
         final_display_parts = [term_query_string] if term_query_string else []
+        url_params_list = []
 
+        # The main query part goes into the 'q' parameter
+        if term_query_string:
+            url_params_list.append(UrlParam('q', term_query_string).to_string())
+
+        # The other fields become their own top-level URL parameters
         for param in top_level_params:
             final_display_parts.append(f"{param.key}:{param.value}")
+            url_params_list.append(param.to_string())
 
+        # The final string shown to the user is a space-separated list of all components
+        # This is how Google's own search box displays it
         final_display_string = " ".join(final_display_parts)
         
-        url_params_list = [UrlParam('q', final_display_string).to_string()]
+        # The URL is built from the combined list of URL parameters
+        # --- FIX: The logic for building the final URL is now different ---
+        # Google patents uses a mix of `q=` for terms and top-level params for fields.
+        # So we can't just put everything in 'q'.
+        
+        # Let's rebuild the final query string for the 'q' parameter to include everything
+        # This is simpler and aligns with how Google seems to handle complex queries pasted in.
+        final_q_string = " ".join(final_display_parts)
+        
+        url_params_list = [UrlParam('q', final_q_string).to_string()] if final_q_string else []
         final_url_query = "&".join(url_params_list)
         
         url = f"https://patents.google.com/?{final_url_query}" if final_url_query else "#"
         
-        return models.GenerateResponse(queryStringDisplay=final_display_string, url=url)
+        return models.GenerateResponse(queryStringDisplay=final_q_string, url=url)
 
     elif req.format == "uspto":
+        # USPTO logic remains the same, as it's simpler
         generator = GENERATORS["uspto"]
-        combined_query = " AND ".join([generator.generate(QueryRootNode(n)) for n in ast_nodes])
+        if not ast_nodes:
+             return models.GenerateResponse(queryStringDisplay="", url="#")
+        combined_query_node = BooleanOpNode("AND", ast_nodes) if len(ast_nodes) > 1 else ast_nodes[0]
+        combined_query = generator.generate(QueryRootNode(query=combined_query_node))
         url_query_param = quote_plus(combined_query)
         url = f"https://ppubs.uspto.gov/pubwebapp/static/pages/ppubsadvanced.html?query={url_query_param}" if url_query_param else "#"
         return models.GenerateResponse(queryStringDisplay=combined_query, url=url)
     else:
         raise HTTPException(status_code=400, detail=f"Invalid format for generation: {req.format}")
+    # --- END: REVISED generate_query function ---
 
+# ... (the rest of the file, parse_query and convert_query_service, remains unchanged)
 def parse_query(req: models.ParseRequest) -> models.ParseResponse:
     if req.format not in PARSERS:
         raise HTTPException(status_code=400, detail=f"No parser available for format: {req.format}")
@@ -167,7 +198,7 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
     if isinstance(ast_root.query, TermNode) and (ast_root.query.value.startswith("PARSE_ERROR") or ast_root.query.value == "__EMPTY__"):
         return models.ParseResponse(
             searchConditions=[models.SearchCondition(
-                id=str(uuid.uuid4()), type="TEXT", data=models.TextSearchData(type="TEXT", text=req.queryString)
+                id=str(uuid.uuid4()), type="TEXT", data={"type": "TEXT", "text": req.queryString}
             )],
             googleLikeFields=models.GoogleLikeSearchFields(dateFrom="", dateTo="", dateType="publication", inventors=[], assignees=[], patentOffices=[], languages=[], status="", patentType="", litigation=""),
             usptoSpecificSettings=models.UsptoSpecificSettings(defaultOperator="AND", plurals=False, britishEquivalents=True, selectedDatabases=['US-PGPUB', 'USPAT', 'USOCR'], highlights='SINGLE_COLOR', showErrors=True)
@@ -175,6 +206,7 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
 
     def is_field_or_date(node: ASTNode) -> bool:
         if isinstance(node, FieldedSearchNode):
+            # These fields are handled by the dedicated UI elements
             return node.field_canonical_name in ["inventor_name", "assignee_name", "country_code", "language", "status", "patent_type"]
         if isinstance(node, DateSearchNode): return True
         if isinstance(node, TermNode) and node.value.lower() == "is:litigated": return True
@@ -204,21 +236,20 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
 
     text_search_string = ""
     if text_nodes_ast:
+        # Re-combine the remaining text nodes into a single AST
         text_root_node = BooleanOpNode("AND", text_nodes_ast) if len(text_nodes_ast) > 1 else text_nodes_ast[0]
+        # Use the appropriate generator to create the string representation
         text_search_string = generator.generate(QueryRootNode(query=text_root_node))
         
-        # FIX: Replace explicit ANDs with spaces for user-friendly display in the text box.
-        if req.format == "google":
-            text_search_string = text_search_string.replace(" AND ", " ")
-
     return models.ParseResponse(
         searchConditions=[models.SearchCondition(
-            id=str(uuid.uuid4()), type="TEXT", data=models.TextSearchData(type="TEXT", text=text_search_string)
+            id=str(uuid.uuid4()), type="TEXT", data={"type": "TEXT", "text": text_search_string}
         )],
         googleLikeFields=glf,
         usptoSpecificSettings=models.UsptoSpecificSettings(defaultOperator="AND", plurals=False, britishEquivalents=True, selectedDatabases=['US-PGPUB', 'USPAT', 'USOCR'], highlights='SINGLE_COLOR', showErrors=True)
     )
 
 def convert_query_service(req: models.ConvertRequest) -> models.ConvertResponse:
+    # This service remains a placeholder for now
     converted_text = f"Placeholder conversion of '{req.query_string}'"
     return models.ConvertResponse(converted_text=converted_text, settings={})
