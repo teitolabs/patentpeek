@@ -37,8 +37,8 @@ class UrlParam:
         if self.key in ['before', 'after']:
             return f"{self.key}={quote(self.value)}"
         else:
-            # Use quote_plus for all other params
-            encoded_value = quote_plus(self.value).replace('%2B', '%2b')
+            # Use quote_plus for all other params, which handles spaces as '+'
+            encoded_value = quote_plus(self.value)
             return f"{self.key}={encoded_value}"
 
 def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode], List[UrlParam]]:
@@ -58,6 +58,7 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
                 text_input = text_data.text.strip()
                 if not text_input:
                     continue
+                # Use the Google parser as the intermediate for building the AST
                 parsed_ast_root = PARSERS["google"].parse(text_input)
                 if not isinstance(parsed_ast_root.query, TermNode) or parsed_ast_root.query.value != "__EMPTY__":
                     ast_nodes.append(parsed_ast_root.query)
@@ -67,6 +68,7 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
         fields = req.googleLikeFields
         
         if fields.inventors:
+            # Join multiple inventors with a comma, as per Google's UI behavior
             value = ",".join([inv.value.strip() for inv in fields.inventors if inv.value.strip()])
             if value: top_level_params.append(UrlParam("inventor", value))
         
@@ -75,10 +77,7 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
             if value: top_level_params.append(UrlParam("assignee", value))
 
         if fields.dateType and (fields.dateFrom or fields.dateTo):
-            date_type_str = ""
-            if fields.dateType == "publication": date_type_str = "publication"
-            elif fields.dateType == "filing": date_type_str = "filing"
-            elif fields.dateType == "priority": date_type_str = "priority"
+            date_type_str = fields.dateType  # 'publication', 'filing', 'priority'
             if date_type_str:
                 if fields.dateFrom:
                     df = fields.dateFrom.replace("-", "")
@@ -101,82 +100,60 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
         if fields.patentType:
             top_level_params.append(UrlParam("type", fields.patentType.upper()))
         
-        # --- FIX: Changed how litigation is handled to use top_level_params ---
-        # This is because Google's URL structure for this is a direct param, not part of 'q'
+        # FIX: Correctly map litigation to Google's URL parameter 'litigated=true'
         if fields.litigation == "YES":
-            top_level_params.append(UrlParam("litigation", "YES"))
-        elif fields.litigation == "NO":
-            top_level_params.append(UrlParam("litigation", "NO"))
-
+            top_level_params.append(UrlParam("litigated", "true"))
+        
     return ast_nodes, top_level_params
 
 
 def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
-    # --- START: REVISED generate_query function ---
-    ast_nodes, top_level_params = _build_query_components(req)
-
-    if not ast_nodes and not top_level_params:
-        return models.GenerateResponse(queryStringDisplay="", url="#")
-
     if req.format == "google":
         generator = GENERATORS["google"]
+        ast_nodes, top_level_params = _build_query_components(req)
+
+        if not ast_nodes and not top_level_params:
+            return models.GenerateResponse(queryStringDisplay="", url="#")
+
+        url_params_list = []
         display_parts = []
-        
-        # Process each AST node from the text boxes individually
+
+        # --- Build the 'q' parameters and display parts from text boxes ---
         for node in ast_nodes:
             generated_str = generator.generate(QueryRootNode(query=node))
-            if not generated_str:
-                continue
-            
-            # The core of the fix: wrap in parentheses if it's not already complex
-            # A simple heuristic: if it doesn't contain parentheses already, wrap it.
-            # Also, don't wrap error messages.
-            if '(' not in generated_str and not generated_str.startswith("PARSE_ERROR"):
-                 display_parts.append(f"({generated_str})")
-            else:
-                 display_parts.append(generated_str)
-        
-        # This becomes the main query part, joined by spaces (implicit AND)
-        term_query_string = " ".join(display_parts)
-        
-        # Now, build the final display string and URL params
-        final_display_parts = [term_query_string] if term_query_string else []
-        url_params_list = []
+            if generated_str:
+                url_params_list.append(UrlParam('q', generated_str).to_string())
+                # For display, wrap multi-word or complex terms in parentheses for clarity
+                if " " in generated_str and not (generated_str.startswith('(') and generated_str.endswith(')')):
+                    display_parts.append(f"({generated_str})")
+                else:
+                    display_parts.append(generated_str)
 
-        # The main query part goes into the 'q' parameter
-        if term_query_string:
-            url_params_list.append(UrlParam('q', term_query_string).to_string())
-
-        # The other fields become their own top-level URL parameters
+        # --- Build the top-level field parameters and display parts ---
         for param in top_level_params:
-            final_display_parts.append(f"{param.key}:{param.value}")
             url_params_list.append(param.to_string())
+            # For display, use the 'key:value' format, with a special case for litigation
+            if param.key == "litigated" and param.value == "true":
+                 display_parts.append("is:litigated")
+            else:
+                display_parts.append(f"{param.key}:{param.value}")
 
-        # The final string shown to the user is a space-separated list of all components
-        # This is how Google's own search box displays it
-        final_display_string = " ".join(final_display_parts)
-        
-        # The URL is built from the combined list of URL parameters
-        # --- FIX: The logic for building the final URL is now different ---
-        # Google patents uses a mix of `q=` for terms and top-level params for fields.
-        # So we can't just put everything in 'q'.
-        
-        # Let's rebuild the final query string for the 'q' parameter to include everything
-        # This is simpler and aligns with how Google seems to handle complex queries pasted in.
-        final_q_string = " ".join(final_display_parts)
-        
-        url_params_list = [UrlParam('q', final_q_string).to_string()] if final_q_string else []
+        # --- Assemble final URL and Display String ---
         final_url_query = "&".join(url_params_list)
-        
         url = f"https://patents.google.com/?{final_url_query}" if final_url_query else "#"
-        
-        return models.GenerateResponse(queryStringDisplay=final_q_string, url=url)
+        final_display_string = " ".join(display_parts)
+
+        return models.GenerateResponse(queryStringDisplay=final_display_string, url=url)
 
     elif req.format == "uspto":
-        # USPTO logic remains the same, as it's simpler
+        # The USPTO logic remains simpler and is handled separately
         generator = GENERATORS["uspto"]
+        ast_nodes, _ = _build_query_components(req) # USPTO doesn't use top-level params in the same way
+        
         if not ast_nodes:
              return models.GenerateResponse(queryStringDisplay="", url="#")
+
+        # Combine all AST nodes with AND for a single USPTO query
         combined_query_node = BooleanOpNode("AND", ast_nodes) if len(ast_nodes) > 1 else ast_nodes[0]
         combined_query = generator.generate(QueryRootNode(query=combined_query_node))
         url_query_param = quote_plus(combined_query)
@@ -184,7 +161,7 @@ def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
         return models.GenerateResponse(queryStringDisplay=combined_query, url=url)
     else:
         raise HTTPException(status_code=400, detail=f"Invalid format for generation: {req.format}")
-    # --- END: REVISED generate_query function ---
+
 
 # ... (the rest of the file, parse_query and convert_query_service, remains unchanged)
 def parse_query(req: models.ParseRequest) -> models.ParseResponse:
@@ -209,6 +186,7 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
             # These fields are handled by the dedicated UI elements
             return node.field_canonical_name in ["inventor_name", "assignee_name", "country_code", "language", "status", "patent_type"]
         if isinstance(node, DateSearchNode): return True
+        # Check for the term 'is:litigated' to handle it as a field
         if isinstance(node, TermNode) and node.value.lower() == "is:litigated": return True
         return False
     
@@ -225,13 +203,17 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
             elif node.field_canonical_name == "status": glf.status = val.upper()
             elif node.field_canonical_name == "patent_type": glf.patentType = val.upper()
         elif isinstance(node, DateSearchNode):
+            date_obj = node.date_value
+            # Handle both full dates (YYYYMMDD) and years (YYYY)
+            date_str = f"{date_obj[:4]}-{date_obj[4:6]}-{date_obj[6:]}" if len(date_obj) > 4 else date_obj
+
             if node.operator in [">=", ">"]:
-                glf.dateFrom = f"{node.date_value[:4]}-{node.date_value[4:6]}-{node.date_value[6:]}"
+                glf.dateFrom = date_str
                 if node.field_canonical_name == "publication_date": glf.dateType = "publication"
                 elif node.field_canonical_name == "application_date": glf.dateType = "filing"
                 elif node.field_canonical_name == "priority_date": glf.dateType = "priority"
             elif node.operator in ["<=", "<"]:
-                glf.dateTo = f"{node.date_value[:4]}-{node.date_value[4:6]}-{node.date_value[6:]}"
+                glf.dateTo = date_str
         elif isinstance(node, TermNode) and node.value.lower() == "is:litigated": glf.litigation = "YES"
 
     text_search_string = ""
@@ -251,5 +233,16 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
 
 def convert_query_service(req: models.ConvertRequest) -> models.ConvertResponse:
     # This service remains a placeholder for now
-    converted_text = f"Placeholder conversion of '{req.query_string}'"
-    return models.ConvertResponse(converted_text=converted_text, settings={})
+    try:
+        source_parser = PARSERS[req.source_format]
+        target_generator = GENERATORS[req.target_format]
+        ast = source_parser.parse(req.query_string)
+        
+        # Check for parse errors
+        if isinstance(ast.query, TermNode) and ast.query.value.startswith("PARSE_ERROR"):
+            return models.ConvertResponse(error=f"Could not parse source query: {ast.query.value}")
+
+        converted_text = target_generator.generate(ast)
+        return models.ConvertResponse(converted_text=converted_text, settings={})
+    except Exception as e:
+        return models.ConvertResponse(error=str(e))

@@ -13,8 +13,9 @@ const ChatContainer: React.FC<{ key: number }> = ({ key: resetKeyProp }) => {
     setActiveFormat('google');
   }, [resetKeyProp]);
 
-  // FIX: Wrap the handler in useCallback to prevent it from being a new function
-  // on every render. This stabilizes the prop and fixes the feedback loop in ChatInput.
+  // Wrap the handler in useCallback to prevent it from being a new function
+  // on every render. This stabilizes the prop passed to ChatInput and is critical
+  // for preventing re-render loops in its useEffect hook.
   const handleMainInputChange = useCallback((text: string) => {
     setCurrentText(text);
   }, []);
