@@ -28,31 +28,34 @@ export type Language =
 export type PatentStatus = 'GRANT' | 'APPLICATION' | '';
 export type PatentType = 'PATENT' | 'DESIGN' | 'PLANT' | 'REISSUE' | 'SIR' | 'UTILITY' | 'PROVISIONAL' | 'DEFENSIVE_PUBLICATION' | 'STATUTORY_INVENTION_REGISTRATION' | 'OTHER' | '';
 export type LitigationStatus = 'YES' | 'NO' | '';
-
-// The only active search tool type is TEXT.
 export type SearchToolType = 'TEXT';
 
-export interface BaseSearchCondition {
+export interface DynamicEntry {
   id: string;
-  type: SearchToolType;
+  value: string;
 }
 
-// Simplified data structure for a text search condition.
-// Scopes and term operators have been removed as they are no longer used.
+export interface GoogleLikeSearchFields {
+  dateFrom: string;
+  dateTo: string;
+  dateType: DateType;
+  inventors: DynamicEntry[];
+  assignees: DynamicEntry[];
+  patentOffices: PatentOffice[];
+  languages: Language[];
+  status: PatentStatus;
+  patentType: PatentType;
+  litigation: LitigationStatus;
+}
+
+export interface BaseSearchCondition { id: string; type: SearchToolType; }
 export interface InternalTextSearchData {
   text: string;
   error?: string | null;
 }
-
-export interface TextSearchCondition extends BaseSearchCondition {
-  type: 'TEXT';
-  data: InternalTextSearchData;
-}
-
-// The SearchCondition is now only ever a TextSearchCondition.
+export interface TextSearchCondition extends BaseSearchCondition { type: 'TEXT'; data: InternalTextSearchData; }
 export type SearchCondition = TextSearchCondition;
 
-// This payload is kept for clarity but is now simpler.
 export interface BackendSearchConditionPayload {
   id: string;
   type: SearchToolType;

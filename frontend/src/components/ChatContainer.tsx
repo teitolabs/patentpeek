@@ -1,5 +1,5 @@
 // src/components/ChatContainer.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ChatInput from './ChatInput';
 import { PatentFormat } from '../types';
 import { convertQuery } from './googlePatents/googleApi'; // Use the new API client
@@ -13,9 +13,11 @@ const ChatContainer: React.FC<{ key: number }> = ({ key: resetKeyProp }) => {
     setActiveFormat('google');
   }, [resetKeyProp]);
 
-  const handleMainInputChange = (text: string) => {
+  // FIX: Wrap the handler in useCallback to prevent it from being a new function
+  // on every render. This stabilizes the prop and fixes the feedback loop in ChatInput.
+  const handleMainInputChange = useCallback((text: string) => {
     setCurrentText(text);
-  };
+  }, []);
 
   const handleTabChange = async (newActiveFormat: PatentFormat) => {
     if (newActiveFormat === activeFormat) return;

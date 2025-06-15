@@ -5,22 +5,17 @@ import {
     Globe, Check, Languages, Filter, Type as TypeIcon, ShieldQuestion
 } from 'lucide-react';
 import {
-    DateType, PatentOffice, Language, PatentStatus, PatentType, LitigationStatus
+    DateType, PatentOffice, Language, PatentStatus, PatentType, LitigationStatus, GoogleLikeSearchFields
 } from '../searchToolTypes';
 
-export interface GoogleLikeSearchFields {
-  dateFrom: string; dateTo: string; dateType: DateType;
-  inventors: Array<{ id: string; value: string }>;
-  assignees: Array<{ id: string; value: string }>;
-  patentOffices: PatentOffice[];
-  languages: Language[];
-  status: PatentStatus; patentType: PatentType;
-  litigation: LitigationStatus;
-}
 
 export const dateTypeOptions: Array<{value: DateType; label: string}> = [
     {value: 'publication', label: 'Publication'}, {value: 'priority', label: 'Priority'}, {value: 'filing', label: 'Filing'},
 ];
+
+// ... (rest of file is unchanged, only the import matters)
+
+// REMOVED LOCAL DEFINITION OF GoogleLikeSearchFields
 
 export const patentOfficeOptions: Array<{value: PatentOffice; label: string}> = [
     {value: 'WO', label: 'WO'}, {value: 'US', label: 'US'}, {value: 'EP', label: 'EP'},

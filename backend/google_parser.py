@@ -1,6 +1,5 @@
-
 # google_parser.py
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable, Tuple
 import pyparsing as pp
 import re
 from ast_nodes import (
@@ -38,6 +37,49 @@ class GoogleQueryParser:
     def __init__(self):
         self.current_expr_parser = pp.Forward()
         self.grammar = self._define_grammar()
+
+    def _walk_ast_and_split(
+        self, node: ASTNode, condition_func: Callable[[ASTNode], bool]
+    ) -> Tuple[List[ASTNode], List[ASTNode]]:
+        """
+        Recursively walks the AST. If a node matches the condition_func, it's
+        put into the 'matched' list. If a BooleanOpNode's operands are all
+        matched and removed, it is also removed. Remaining nodes form the 'unmatched' list.
+        """
+        matched_nodes: List[ASTNode] = []
+        
+        def _recursive_walk(current_node: ASTNode) -> Optional[ASTNode]:
+            nonlocal matched_nodes
+            
+            if condition_func(current_node):
+                matched_nodes.append(current_node)
+                return None  # This node is matched and removed from the tree
+
+            if isinstance(current_node, BooleanOpNode):
+                # Recursively process operands
+                new_operands = [
+                    operand_result
+                    for op in current_node.operands
+                    if (operand_result := _recursive_walk(op)) is not None
+                ]
+                
+                if not new_operands:
+                    return None  # The operator has no remaining operands
+                
+                # If only one operand remains, return it directly to flatten the tree
+                if len(new_operands) == 1:
+                    return new_operands[0]
+                
+                current_node.operands = new_operands
+                return current_node
+            
+            return current_node
+
+        unmatched_ast_root = _recursive_walk(node)
+        
+        unmatched_nodes = [unmatched_ast_root] if unmatched_ast_root else []
+        
+        return matched_nodes, unmatched_nodes
 
     def _build_ast_from_infix_tokens(self, instring: str, loc: int, tokens: pp.ParseResults):
         op_list = tokens[0] 
@@ -93,7 +135,6 @@ class GoogleQueryParser:
             
             elif isinstance(operator_str_or_node, ASTNode): # Implicit AND
                 right_operand_node = operator_str_or_node
-                # --- FIX: Flatten consecutive implicit ANDs for a cleaner AST ---
                 if isinstance(current_ast_node, BooleanOpNode) and current_ast_node.operator == "AND":
                     current_ast_node.operands.append(right_operand_node)
                 else:
@@ -187,7 +228,7 @@ class GoogleQueryParser:
 
         fielded_search_paren_type = pp.Group(
             google_field_prefix_re + pp.Suppress("=") + field_content_in_parens
-        ).set_parse_action(self._make_fielded_node)
+        ).set_parse_action(self._make_fielded_node) # <-- FIX: Corrected typo here
 
         fielded_search_simple_type = pp.Group(
             google_field_prefix_re + FIELD_OP + field_content_atom

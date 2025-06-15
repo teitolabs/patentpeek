@@ -1,7 +1,7 @@
 // src/components/googlePatents/googleApi.ts
 import { PatentFormat } from '../../types';
-import { SearchCondition, TextSearchCondition, SearchToolType } from '../searchToolTypes';
-import { GoogleLikeSearchFields } from './GooglePatentsFields';
+// FIX: Changed the import path to the correct location for these types.
+import { SearchCondition, TextSearchCondition, SearchToolType, GoogleLikeSearchFields } from '../searchToolTypes';
 import { UsptoSpecificSettings } from '../usptoPatents/usptoQueryBuilder';
 
 // --- START: Define Payload-Specific Types ---
