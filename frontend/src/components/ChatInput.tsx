@@ -1,57 +1,21 @@
 // src/components/ChatInput.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+// --- FIX: Removed unused 'useCallback', added 'useEffect' ---
+import React, { useState, useRef, useEffect } from 'react';
 import { PatentFormat } from '../types';
 import {
     XCircle, Type as TypeIcon, Wand2, Link as LinkIcon,
     AlertCircle
 } from 'lucide-react';
 import {
-    SearchCondition, TextSearchCondition, PatentOffice, Language, 
+    SearchCondition, PatentOffice, Language, 
     GoogleLikeSearchFields as GoogleLikeSearchFieldsType, DynamicEntry
 } from './searchToolTypes';
 
 import GooglePatentsFields from './googlePatents/GooglePatentsFields';
-import { UsptoSpecificSettings } from './usptoPatents/usptoQueryBuilder';
-import { generateQuery, parseQuery } from './googlePatents/googleApi';
+import { parseQuery } from './googlePatents/googleApi';
+import { useQueryBuilder } from './useQueryBuilder'; // Import the new hook
 
-const GOOGLE_OPERATORS = /\b(AND|OR|NOT|NEAR\d*|ADJ\d*)\b/gi;
 const FIELDED_SYNTAX_HEURISTIC = /^\s*(inventor|assignee|cpc|ipc|pn|after|before|country|lang|status|type|is:litigated)[:=]/i;
-
-function validateSearchTermText(text: string): string | null {
-  const trimmedText = text.trim();
-  if (!trimmedText) return null;
-
-  // Don't validate if it looks like a fielded query, parser will handle it
-  if (FIELDED_SYNTAX_HEURISTIC.test(trimmedText)) {
-      return null;
-  }
-
-  let parenCount = 0;
-  for (const char of trimmedText) {
-    if (char === '(') parenCount++;
-    if (char === ')') parenCount--;
-    if (parenCount < 0) return "Unmatched parentheses.";
-  }
-  if (parenCount !== 0) return "Unmatched parentheses.";
-
-  if ((trimmedText.match(/"/g) || []).length % 2 !== 0) {
-    return "Unmatched quotes.";
-  }
-
-  const words = trimmedText.replace(/[()"]/g, ' ').split(/\s+/).filter(Boolean);
-  if (words.length > 0) {
-    const lastWord = words[words.length - 1].toUpperCase();
-    if (lastWord.match(GOOGLE_OPERATORS)) {
-      return "Query cannot end with an operator.";
-    }
-  }
-  
-  if (/\b(AND|OR|NOT)\s+\b(AND|OR|NOT)\b/i.test(trimmedText)) {
-      return "Cannot have consecutive operators.";
-  }
-
-  return null;
-}
 
 export interface ChatInputProps {
   value: string;
@@ -61,121 +25,44 @@ export interface ChatInputProps {
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
-  value: mainQueryValue, activeFormat, onTabChange, onMainInputChange,
+  value: mainQueryValueFromProp, activeFormat, onTabChange, onMainInputChange,
 }) => {
-  const createDefaultTextCondition = useCallback((): TextSearchCondition => ({
-    id: crypto.randomUUID(), type: 'TEXT', data: { text: '', error: null }
-  }), []);
+  // --- Use the custom hook to manage all state and logic ---
+  const {
+      mainQueryValue,
+      queryLinkHref,
+      searchConditions,
+      googleLikeFields,
+      onFieldChange,
+      updateSearchConditionText,
+      removeSearchCondition,
+      handleParseAndApply,
+      setGoogleLikeFields,
+      setSearchConditions,
+  } = useQueryBuilder(activeFormat);
 
-  const [searchConditions, setSearchConditions] = useState<SearchCondition[]>([createDefaultTextCondition()]);
-  const [googleLikeFields, setGoogleLikeFields] = useState<GoogleLikeSearchFieldsType>({
-    dateFrom: '', dateTo: '', dateType: 'publication', inventors: [], assignees: [], patentOffices: [], languages: [], status: '', patentType: '', litigation: '',
-  });
-  const [usptoSpecificSettings, setUsptoSpecificSettings] = useState<UsptoSpecificSettings>({
-    defaultOperator: 'AND', plurals: false, britishEquivalents: true, selectedDatabases: ['US-PGPUB', 'USPAT', 'USOCR'], highlights: 'SINGLE_COLOR', showErrors: true,
-  });
-  
-  const [queryLinkHref, setQueryLinkHref] = useState<string>('#');
-  const isInternalUpdate = useRef(false);
-  
-  const triggerQueryGeneration = useCallback(async () => {
-    const hasErrors = searchConditions.some(c => c.data.error);
-    if (hasErrors) {
-      onMainInputChange('');
-      setQueryLinkHref('#');
-      return;
-    }
-    
-    isInternalUpdate.current = true;
-    const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
-    onMainInputChange(result.queryStringDisplay);
-    setQueryLinkHref(result.url);
-  }, [activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings, onMainInputChange]);
-
+  // This effect syncs the hook's generated query string back up to the parent.
   useEffect(() => {
-    // This effect now correctly handles regeneration when any structured data changes.
-    // The isInternalUpdate ref prevents an infinite loop from the main query input's onChange.
-    if (isInternalUpdate.current) {
-        isInternalUpdate.current = false;
-        return;
-    }
-    triggerQueryGeneration();
-  }, [googleLikeFields, searchConditions, usptoSpecificSettings, activeFormat, triggerQueryGeneration]);
+    onMainInputChange(mainQueryValue);
+  }, [mainQueryValue, onMainInputChange]);
 
-  const manageSearchConditionInputs = (conditions: SearchCondition[]): SearchCondition[] => {
-    let filteredConditions = conditions.filter((cond, index) => {
-        if (cond.data.text.trim() === '') {
-            const anotherEmptyExists = conditions.slice(index + 1).some(c => c.data.text.trim() === '');
-            return !anotherEmptyExists;
-        }
-        return true;
-    });
-    const lastCondition = filteredConditions[filteredConditions.length - 1];
-    const needsEmptyBox = !lastCondition || lastCondition.data.text.trim() !== '';
-    if (needsEmptyBox) {
-        filteredConditions.push(createDefaultTextCondition());
-    }
-    if(filteredConditions.length === 0) {
-        filteredConditions.push(createDefaultTextCondition());
-    }
-    return filteredConditions;
-  };
-  
   const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    isInternalUpdate.current = false;
+    // We still call the parent's handler to update the text,
+    // but parsing only happens on Enter.
     onMainInputChange(e.target.value);
   };
   
   const handleMainQueryKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        isInternalUpdate.current = true;
-        try {
-            const result = await parseQuery(activeFormat, mainQueryValue);
-            
-            const newSearchConditions = result.searchConditions.map(sc => ({
-                ...sc,
-                data: { ...sc.data, error: null }
-            }));
-
-            // FIX: Set state and let the useEffect handle regeneration. Do not call triggerQueryGeneration here.
-            setSearchConditions(manageSearchConditionInputs(newSearchConditions));
-            setGoogleLikeFields(result.googleLikeFields);
-            setUsptoSpecificSettings(result.usptoSpecificSettings);
-
-        } catch (error) {
-            console.error("Parsing failed:", error);
-            onMainInputChange(`Error parsing query: ${(error as Error).message}`);
-        }
+        // Use the hook's function to parse and update the entire state
+        await handleParseAndApply(mainQueryValueFromProp);
     }
   };
 
   const handleTabClick = (newFormat: PatentFormat) => onTabChange(newFormat);
   
-  const onFieldChange = <K extends keyof GoogleLikeSearchFieldsType>(field: K, value: GoogleLikeSearchFieldsType[K]) => setGoogleLikeFields((prev: GoogleLikeSearchFieldsType) => ({ ...prev, [field]: value }));
-  
-  const updateSearchConditionText = (id: string, newText: string) => {
-      setSearchConditions((prev: SearchCondition[]) => {
-          const updated = prev.map(sc => {
-              if (sc.id === id) {
-                  const error = validateSearchTermText(newText);
-                  return { ...sc, data: { ...sc.data, text: newText, error } };
-              }
-              return sc;
-          });
-          // FIX: Call manageSearchConditionInputs here to provide immediate UI feedback for adding new boxes.
-          return manageSearchConditionInputs(updated);
-      });
-  };
-
-  const removeSearchCondition = (id: string) => {
-      setSearchConditions((prev: SearchCondition[]) => manageSearchConditionInputs(prev.filter(sc => sc.id !== id)));
-  };
-
   const processIndividualTerm = async (id: string, text: string) => {
-      // Trigger generation on blur/enter to reflect any non-fielded text changes
-      triggerQueryGeneration();
-
       if (!FIELDED_SYNTAX_HEURISTIC.test(text)) {
           return; // Not a fielded query, nothing more to do
       }
@@ -185,13 +72,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
           
           setGoogleLikeFields((prevFields: GoogleLikeSearchFieldsType) => {
               const newFields = { ...prevFields };
-              newFields.inventors = [...prevFields.inventors, ...result.googleLikeFields.inventors];
-              newFields.assignees = [...prevFields.assignees, ...result.googleLikeFields.assignees];
-              newFields.patentOffices = [...prevFields.patentOffices, ...result.googleLikeFields.patentOffices];
-              newFields.languages = [...prevFields.languages, ...result.googleLikeFields.languages];
+              // Merge fields instead of replacing them
+              newFields.inventors = [...new Set([...prevFields.inventors, ...result.googleLikeFields.inventors])];
+              newFields.assignees = [...new Set([...prevFields.assignees, ...result.googleLikeFields.assignees])];
+              newFields.patentOffices = [...new Set([...prevFields.patentOffices, ...result.googleLikeFields.patentOffices])];
+              newFields.languages = [...new Set([...prevFields.languages, ...result.googleLikeFields.languages])];
               if (result.googleLikeFields.dateFrom) newFields.dateFrom = result.googleLikeFields.dateFrom;
               if (result.googleLikeFields.dateTo) newFields.dateTo = result.googleLikeFields.dateTo;
-              if (result.googleLikeFields.dateType) newFields.dateType = result.googleLikeFields.dateType;
+              if (result.googleLikeFields.dateType && result.googleLikeFields.dateType !== 'publication') newFields.dateType = result.googleLikeFields.dateType;
               if (result.googleLikeFields.status) newFields.status = result.googleLikeFields.status;
               if (result.googleLikeFields.patentType) newFields.patentType = result.googleLikeFields.patentType;
               if (result.googleLikeFields.litigation) newFields.litigation = result.googleLikeFields.litigation;
@@ -199,12 +87,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           });
 
           const remainingText = result.searchConditions[0]?.data.text || '';
-          setSearchConditions(prev => {
-              const updated = prev.map(sc => 
-                  sc.id === id ? { ...sc, data: { ...sc.data, text: remainingText, error: null } } : sc
-              );
-              return manageSearchConditionInputs(updated);
-          });
+          updateSearchConditionText(id, remainingText);
 
       } catch (error) {
           console.error("Individual term parsing failed:", error);
@@ -238,6 +121,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     );
   };
 
+  // --- Local UI State (can remain in the component) ---
   const [currentInventorInput, setCurrentInventorInput] = useState('');
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
   const inventorInputRef = useRef<HTMLInputElement>(null);
@@ -246,18 +130,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const patentOfficeRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
-  const onPatentOfficeToggle = (office: PatentOffice) => setGoogleLikeFields((p: GoogleLikeSearchFieldsType) => ({...p, patentOffices: p.patentOffices.includes(office) ? p.patentOffices.filter(o => o !== office) : [...p.patentOffices, office]}));
-  const onLanguageToggle = (lang: Language) => setGoogleLikeFields((p: GoogleLikeSearchFieldsType) => ({...p, languages: p.languages.includes(lang) ? p.languages.filter(l => l !== lang) : [...p.languages, lang]}));
+  
+  const onPatentOfficeToggle = (office: PatentOffice) => onFieldChange('patentOffices', googleLikeFields.patentOffices.includes(office) ? googleLikeFields.patentOffices.filter(o => o !== office) : [...googleLikeFields.patentOffices, office]);
+  const onLanguageToggle = (lang: Language) => onFieldChange('languages', googleLikeFields.languages.includes(lang) ? googleLikeFields.languages.filter(l => l !== lang) : [...googleLikeFields.languages, lang]);
+  
   const onAddDynamicEntry = (field: 'inventors' | 'assignees') => {
     const value = field === 'inventors' ? currentInventorInput.trim() : currentAssigneeInput.trim();
     if (!value) return;
     const newEntry = { id: crypto.randomUUID(), value };
-    setGoogleLikeFields((prev: GoogleLikeSearchFieldsType) => ({ ...prev, [field]: [...prev[field], newEntry] }));
+    onFieldChange(field, [...googleLikeFields[field], newEntry]);
     if (field === 'inventors') setCurrentInventorInput('');
     else setCurrentAssigneeInput('');
   };
+  
   const onRemoveDynamicEntry = (field: 'inventors' | 'assignees', id: string) => {
-    setGoogleLikeFields((prev: GoogleLikeSearchFieldsType) => ({ ...prev, [field]: prev[field].filter((entry: DynamicEntry) => entry.id !== id) }));
+    onFieldChange(field, googleLikeFields[field].filter((entry: DynamicEntry) => entry.id !== id));
   };
 
   const formatTabs: Array<{ value: PatentFormat; label: string; icon: React.ReactNode }> = [
@@ -275,7 +162,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <label htmlFor="main-query-input" className="text-sm font-medium text-gray-700">Generated Query String</label>
         <div className="flex items-center border border-gray-300 rounded-lg shadow-sm focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
           <a href={queryLinkHref} target="_blank" rel="noopener noreferrer" className={`p-2 ${queryLinkHref === '#' ? 'cursor-not-allowed text-gray-400' : 'text-blue-600 hover:bg-gray-100'}`} title={queryLinkHref === '#' ? 'Generate a query to enable link' : 'Open query in new tab'} aria-disabled={queryLinkHref === '#'} onClick={(e) => queryLinkHref === '#' && e.preventDefault()}><LinkIcon size={18} /></a>
-          <input id="main-query-input" type="text" value={mainQueryValue} onChange={handleMainQueryDirectInputChange} onKeyDown={handleMainQueryKeyDown} placeholder="Your generated query will appear here... or type a query and press Enter" className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" />
+          <input id="main-query-input" type="text" value={mainQueryValueFromProp} onChange={handleMainQueryDirectInputChange} onKeyDown={handleMainQueryKeyDown} placeholder="Your generated query will appear here... or type a query and press Enter" className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" />
         </div>
       </div>
       {activeFormat === 'google' && (
