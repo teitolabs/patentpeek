@@ -61,38 +61,56 @@ const UsptoPatentsFields: React.FC<UsptoPatentsFieldsProps> = ({
 
   const isAllDatabasesSelected = selectedDatabases.length === USPTO_DATABASES.length;
 
+  // --- START: FIX ---
+  // Wrapper component for disabled fields to show a tooltip
+  const DisabledWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <div title="This setting must be configured manually on the USPTO website." className="relative">
+      {children}
+      <div className="absolute inset-0 bg-gray-200 opacity-30 cursor-not-allowed rounded-md"></div>
+    </div>
+  );
+  // --- END: FIX ---
+
   return (
     <div className="flex flex-col md:flex-row gap-4 p-1 text-sm">
       {/* Main Options Area */}
       <div className="flex-grow space-y-4 p-4 border border-gray-300 rounded-md bg-gray-50 shadow-sm">
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-          <div>
-            <label htmlFor="usptoDefaultOperator" className="block text-xs font-medium text-gray-700 mb-1">
-              Default Operator:
-            </label>
-            <select
-              id="usptoDefaultOperator"
-              value={defaultOperator}
-              onChange={(e) => setDefaultOperator(e.target.value)}
-              className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              {defaultOperatorOptions.map(op => <option key={op} value={op}>{op}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="usptoHighlights" className="block text-xs font-medium text-gray-700 mb-1">
-              Highlights:
-            </label>
-            <select
-              id="usptoHighlights"
-              value={highlights}
-              onChange={(e) => setHighlights(e.target.value)}
-              className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              {highlightOptions.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
-            </select>
-          </div>
+          {/* --- START: FIX --- */}
+          {/* Gray out unsupported fields */}
+          <DisabledWrapper>
+            <div>
+                <label htmlFor="usptoDefaultOperator" className="block text-xs font-medium text-gray-700 mb-1">
+                Default Operator:
+                </label>
+                <select
+                id="usptoDefaultOperator"
+                value={defaultOperator}
+                onChange={(e) => setDefaultOperator(e.target.value)}
+                className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm disabled:cursor-not-allowed"
+                disabled
+                >
+                {defaultOperatorOptions.map(op => <option key={op} value={op}>{op}</option>)}
+                </select>
+            </div>
+          </DisabledWrapper>
+          <DisabledWrapper>
+            <div>
+                <label htmlFor="usptoHighlights" className="block text-xs font-medium text-gray-700 mb-1">
+                Highlights:
+                </label>
+                <select
+                id="usptoHighlights"
+                value={highlights}
+                onChange={(e) => setHighlights(e.target.value)}
+                className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm disabled:cursor-not-allowed"
+                disabled
+                >
+                {highlightOptions.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
+                </select>
+            </div>
+          </DisabledWrapper>
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
@@ -108,30 +126,37 @@ const UsptoPatentsFields: React.FC<UsptoPatentsFieldsProps> = ({
               Show Errors
             </label>
           </div>
-          <div className="flex items-center">
-            <input
-              id="usptoPlurals"
-              type="checkbox"
-              checked={plurals}
-              onChange={(e) => setPlurals(e.target.checked)}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="usptoPlurals" className="ml-2 text-gray-700">
-              Plurals
-            </label>
-          </div>
-          <div className="flex items-center">
-            <input
-              id="usptoBritishEquivalents"
-              type="checkbox"
-              checked={britishEquivalents}
-              onChange={(e) => setBritishEquivalents(e.target.checked)}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="usptoBritishEquivalents" className="ml-2 text-gray-700">
-              British Equivalents
-            </label>
-          </div>
+          <DisabledWrapper>
+            <div className="flex items-center">
+                <input
+                id="usptoPlurals"
+                type="checkbox"
+                checked={plurals}
+                onChange={(e) => setPlurals(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
+                disabled
+                />
+                <label htmlFor="usptoPlurals" className="ml-2 text-gray-700">
+                Plurals
+                </label>
+            </div>
+          </DisabledWrapper>
+          <DisabledWrapper>
+            <div className="flex items-center">
+                <input
+                id="usptoBritishEquivalents"
+                type="checkbox"
+                checked={britishEquivalents}
+                onChange={(e) => setBritishEquivalents(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
+                disabled
+                />
+                <label htmlFor="usptoBritishEquivalents" className="ml-2 text-gray-700">
+                British Equivalents
+                </label>
+            </div>
+          </DisabledWrapper>
+          {/* --- END: FIX --- */}
         </div>
 
         <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 justify-end">

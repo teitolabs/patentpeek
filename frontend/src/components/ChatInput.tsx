@@ -58,6 +58,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
     setUsptoQuery('');
   }
 
+  const handleUsptoPatentNumberSearch = () => {
+    const currentPn = usptoQuery.trim();
+    if (currentPn) {
+      // Per the PDF, a patent number can be surrounded by quotes.
+      const formattedPnQuery = `("${currentPn}").pn.`;
+      setUsptoQuery(formattedPnQuery);
+    }
+  };
+
 
   useEffect(() => {
     if (activeFormat === 'google') {
@@ -77,11 +86,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   const handleMainQueryKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
         if (activeFormat === 'google') {
+            e.preventDefault();
             await handleParseAndApply(mainQueryValueFromProp);
-        } else {
-            handleUsptoSearch();
         }
     }
   };
@@ -238,7 +245,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 setSelectedDatabases={handleSelectedDatabasesChange}
                 onSearch={handleUsptoSearch}
                 onClear={handleUsptoClear}
-                onPatentNumberSearch={() => { /* Placeholder for PN search */ }}
+                onPatentNumberSearch={handleUsptoPatentNumberSearch}
             />
         )}
       </div>
