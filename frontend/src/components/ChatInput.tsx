@@ -13,6 +13,7 @@ import {
 import GooglePatentsFields from './googlePatents/GooglePatentsFields';
 import UsptoPatentsFields from './usptoPatents/UsptoPatentsFields';
 import { parseQuery } from './googlePatents/googleApi';
+import { generateUsptoQuery } from './usptoPatents/usptoQueryBuilder';
 import { useQueryBuilder } from './useQueryBuilder';
 import ASTViewer from './ASTViewer';
 
@@ -37,7 +38,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       usptoSpecificSettings,
       onFieldChange,
       onUsptoFieldChange,
-      setUsptoSpecificSettings, // This will now be used
+      setUsptoSpecificSettings,
       updateSearchConditionText,
       removeSearchCondition,
       handleParseAndApply,
@@ -45,16 +46,37 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setSearchConditions,
   } = useQueryBuilder(activeFormat);
 
-  useEffect(() => {
-    onMainInputChange(mainQueryValue);
-  }, [mainQueryValue, onMainInputChange]);
+  // --- START: NEW STATE & HANDLERS FOR USPTO ---
+  const [usptoQuery, setUsptoQuery] = useState('');
 
-  const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUsptoSearch = () => {
+    const { url } = generateUsptoQuery(usptoQuery, usptoSpecificSettings);
+    if (url !== '#') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleUsptoClear = () => {
+    setUsptoQuery('');
+  }
+  // --- END: NEW STATE & HANDLERS FOR USPTO ---
+
+
+  useEffect(() => {
+    // Only sync the query builder's value for the Google format
+    if (activeFormat === 'google') {
+      onMainInputChange(mainQueryValue);
+    } else {
+        onMainInputChange(''); // Clear parent state for USPTO
+    }
+  }, [mainQueryValue, activeFormat, onMainInputChange]);
+  
+  const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onMainInputChange(e.target.value);
   };
   
-  const handleMainQueryKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+  const handleMainQueryKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         await handleParseAndApply(mainQueryValueFromProp);
     }
@@ -110,18 +132,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
             placeholder="Type a search term or a fielded query (e.g., inventor:doe)..." 
             className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" 
           />
-          {hasError && (
-            <div className="p-1 text-red-600" title={textData.error!}>
-              <AlertCircle size={16} />
-            </div>
-          )}
+          {hasError && ( <div className="p-1 text-red-600" title={textData.error!}><AlertCircle size={16} /></div> )}
           {canBeRemoved && !isTextEmpty && ( <button onClick={() => removeSearchCondition(condition.id)} className="p-1 text-gray-400 hover:text-red-500 focus:outline-none mr-1 flex-shrink-0" title="Remove search condition"><XCircle size={16} /></button> )}
       </div>
     );
   };
 
-  // --- START: FIX for the TypeScript errors ---
-  // Create a dedicated handler for the databases checklist that correctly uses the state setter.
   const handleSelectedDatabasesChange: React.Dispatch<React.SetStateAction<string[]>> = (updater) => {
     setUsptoSpecificSettings(prevSettings => {
         const oldDatabases = prevSettings.selectedDatabases;
@@ -129,7 +145,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
         return { ...prevSettings, selectedDatabases: newDatabases };
     });
   };
-  // --- END: FIX ---
 
   const [currentInventorInput, setCurrentInventorInput] = useState('');
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
@@ -167,30 +182,49 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <div className="flex border-b border-gray-200">
         {formatTabs.map(tab => ( <button key={tab.value} onClick={() => handleTabClick(tab.value)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium focus:outline-none ${activeFormat === tab.value ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}> {tab.icon} {tab.label} </button> ))}
       </div>
-      <div className="space-y-1 pt-4">
-        <label htmlFor="main-query-input" className="text-sm font-medium text-gray-700">Generated Query String</label>
-        <div className="flex items-center border border-gray-300 rounded-lg shadow-sm focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
-          <a href={queryLinkHref} target="_blank" rel="noopener noreferrer" className={`p-2 ${queryLinkHref === '#' ? 'cursor-not-allowed text-gray-400' : 'text-blue-600 hover:bg-gray-100'}`} title={queryLinkHref === '#' ? 'Generate a query to enable link' : 'Open query in new tab'} aria-disabled={queryLinkHref === '#'} onClick={(e) => queryLinkHref === '#' && e.preventDefault()}><LinkIcon size={18} /></a>
-          <input id="main-query-input" type="text" value={mainQueryValueFromProp} onChange={handleMainQueryDirectInputChange} onKeyDown={handleMainQueryKeyDown} placeholder="Your generated query will appear here... or type a query and press Enter" className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" />
-        </div>
-      </div>
       
-      <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
-        <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
-          {searchConditions.map((condition: SearchCondition) => {
-             const canBeRemoved = searchConditions.length > 1 || condition.data.text.trim() !== '';
-             return (
-                 <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center"> 
-                    {renderSearchConditionRow(condition, canBeRemoved)}
-                 </div>
-             );
-          })}
+      {/* --- START: UI FIXES --- */}
+      {/* Only show the 'Generated Query String' for Google */}
+      {activeFormat === 'google' && (
+        <div className="space-y-1 pt-4">
+            <label htmlFor="main-query-input" className="text-sm font-medium text-gray-700">Generated Query String</label>
+            <div className="flex items-start border border-gray-300 rounded-lg shadow-sm focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
+                <a href={queryLinkHref} target="_blank" rel="noopener noreferrer" className={`p-2 mt-1 ${queryLinkHref === '#' ? 'cursor-not-allowed text-gray-400' : 'text-blue-600 hover:bg-gray-100'}`} title={queryLinkHref === '#' ? 'Generate a query to enable link' : 'Open query in new tab'} aria-disabled={queryLinkHref === '#'} onClick={(e) => queryLinkHref === '#' && e.preventDefault()}><LinkIcon size={18} /></a>
+                <textarea id="main-query-input" value={mainQueryValueFromProp} onChange={handleMainQueryDirectInputChange} onKeyDown={handleMainQueryKeyDown} placeholder="Your generated query will appear here... or type a query and press Enter" className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none resize-none" rows={2}/>
+            </div>
         </div>
-      </div>
+      )}
+
+      {/* Only show the "Search Terms" section for Google */}
+      {activeFormat === 'google' && (
+        <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
+            <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
+            {searchConditions.map((condition: SearchCondition) => {
+                const canBeRemoved = searchConditions.length > 1 || condition.data.text.trim() !== '';
+                return ( <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center">{renderSearchConditionRow(condition, canBeRemoved)}</div> );
+            })}
+            </div>
+        </div>
+      )}
+
+      {/* For USPTO, show the large query input text area */}
+      {activeFormat === 'uspto' && (
+        <div className="pt-4 space-y-2">
+            <label htmlFor="uspto-query-input" className="text-sm font-medium text-gray-700">Enter query text</label>
+            <textarea 
+                id="uspto-query-input"
+                value={usptoQuery}
+                onChange={(e) => setUsptoQuery(e.target.value)}
+                placeholder="e.g., electric motor OR TTL/(hybrid vehicle) AND APD/>=1/1/2020"
+                className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                rows={4}
+            />
+        </div>
+      )}
 
       <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-lg font-medium text-gray-700 mb-3">Search Fields</h3>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">{activeFormat === 'google' ? 'Search Fields' : 'Query Settings'}</h3>
         {activeFormat === 'google' && (
             <GooglePatentsFields fields={googleLikeFields} onFieldChange={onFieldChange} onPatentOfficeToggle={onPatentOfficeToggle} onLanguageToggle={onLanguageToggle} onAddDynamicEntry={onAddDynamicEntry} onRemoveDynamicEntry={onRemoveDynamicEntry} currentInventorInput={currentInventorInput} setCurrentInventorInput={setCurrentInventorInput} currentAssigneeInput={currentAssigneeInput} setCurrentAssigneeInput={setCurrentAssigneeInput} inventorInputRef={inventorInputRef} assigneeInputRef={assigneeInputRef} isPatentOfficeDropdownOpen={isPatentOfficeDropdownOpen} setIsPatentOfficeDropdownOpen={setIsPatentOfficeDropdownOpen} isLanguageDropdownOpen={isLanguageDropdownOpen} setIsLanguageDropdownOpen={setIsLanguageDropdownOpen} patentOfficeRef={patentOfficeRef} languageRef={languageRef} />
         )}
@@ -207,14 +241,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 britishEquivalents={usptoSpecificSettings.britishEquivalents}
                 setBritishEquivalents={(val) => onUsptoFieldChange('britishEquivalents', val)}
                 selectedDatabases={usptoSpecificSettings.selectedDatabases}
-                setSelectedDatabases={handleSelectedDatabasesChange} // <-- Use the new handler here
-                onSearch={() => {}}
-                onClear={() => {}}
-                onPatentNumberSearch={() => {}}
+                setSelectedDatabases={handleSelectedDatabasesChange}
+                onSearch={handleUsptoSearch}
+                onClear={handleUsptoClear}
+                onPatentNumberSearch={() => { /* Placeholder for PN search */ }}
             />
         )}
       </div>
-      <ASTViewer ast={ast} />
+      {activeFormat === 'google' && <ASTViewer ast={ast} />}
+      {/* --- END: UI FIXES --- */}
     </div>
   );
 };
