@@ -11,9 +11,10 @@ import {
 } from './searchToolTypes';
 
 import GooglePatentsFields from './googlePatents/GooglePatentsFields';
+import UsptoPatentsFields from './usptoPatents/UsptoPatentsFields';
 import { parseQuery } from './googlePatents/googleApi';
 import { useQueryBuilder } from './useQueryBuilder';
-import ASTViewer from './ASTViewer'; // <-- ADDED
+import ASTViewer from './ASTViewer';
 
 const FIELDED_SYNTAX_HEURISTIC = /^\s*(inventor|assignee|cpc|ipc|pn|after|before|country|lang|status|type|is:litigated)[:=]/i;
 
@@ -30,10 +31,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const {
       mainQueryValue,
       queryLinkHref,
-      ast, // <-- ADDED
+      ast,
       searchConditions,
       googleLikeFields,
+      usptoSpecificSettings,
       onFieldChange,
+      onUsptoFieldChange,
+      setUsptoSpecificSettings, // This will now be used
       updateSearchConditionText,
       removeSearchCondition,
       handleParseAndApply,
@@ -116,6 +120,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
     );
   };
 
+  // --- START: FIX for the TypeScript errors ---
+  // Create a dedicated handler for the databases checklist that correctly uses the state setter.
+  const handleSelectedDatabasesChange: React.Dispatch<React.SetStateAction<string[]>> = (updater) => {
+    setUsptoSpecificSettings(prevSettings => {
+        const oldDatabases = prevSettings.selectedDatabases;
+        const newDatabases = typeof updater === 'function' ? updater(oldDatabases) : updater;
+        return { ...prevSettings, selectedDatabases: newDatabases };
+    });
+  };
+  // --- END: FIX ---
+
   const [currentInventorInput, setCurrentInventorInput] = useState('');
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
   const inventorInputRef = useRef<HTMLInputElement>(null);
@@ -159,28 +174,47 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <input id="main-query-input" type="text" value={mainQueryValueFromProp} onChange={handleMainQueryDirectInputChange} onKeyDown={handleMainQueryKeyDown} placeholder="Your generated query will appear here... or type a query and press Enter" className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none" />
         </div>
       </div>
-      {activeFormat === 'google' && (
-        <>
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
-            <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
-              {searchConditions.map((condition: SearchCondition) => {
-                 const canBeRemoved = searchConditions.length > 1 || condition.data.text.trim() !== '';
-                 return (
-                     <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center"> 
-                        {renderSearchConditionRow(condition, canBeRemoved)}
-                     </div>
-                 );
-              })}
-            </div>
-          </div>
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-700 mb-3">Search Fields</h3>
+      
+      <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
+        <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-gray-50 shadow">
+          {searchConditions.map((condition: SearchCondition) => {
+             const canBeRemoved = searchConditions.length > 1 || condition.data.text.trim() !== '';
+             return (
+                 <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center"> 
+                    {renderSearchConditionRow(condition, canBeRemoved)}
+                 </div>
+             );
+          })}
+        </div>
+      </div>
+
+      <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Search Fields</h3>
+        {activeFormat === 'google' && (
             <GooglePatentsFields fields={googleLikeFields} onFieldChange={onFieldChange} onPatentOfficeToggle={onPatentOfficeToggle} onLanguageToggle={onLanguageToggle} onAddDynamicEntry={onAddDynamicEntry} onRemoveDynamicEntry={onRemoveDynamicEntry} currentInventorInput={currentInventorInput} setCurrentInventorInput={setCurrentInventorInput} currentAssigneeInput={currentAssigneeInput} setCurrentAssigneeInput={setCurrentAssigneeInput} inventorInputRef={inventorInputRef} assigneeInputRef={assigneeInputRef} isPatentOfficeDropdownOpen={isPatentOfficeDropdownOpen} setIsPatentOfficeDropdownOpen={setIsPatentOfficeDropdownOpen} isLanguageDropdownOpen={isLanguageDropdownOpen} setIsLanguageDropdownOpen={setIsLanguageDropdownOpen} patentOfficeRef={patentOfficeRef} languageRef={languageRef} />
-          </div>
-          <ASTViewer ast={ast} /> {/* <-- ADDED */}
-        </>
-      )}
+        )}
+        {activeFormat === 'uspto' && (
+            <UsptoPatentsFields 
+                defaultOperator={usptoSpecificSettings.defaultOperator}
+                setDefaultOperator={(val) => onUsptoFieldChange('defaultOperator', val)}
+                highlights={usptoSpecificSettings.highlights}
+                setHighlights={(val) => onUsptoFieldChange('highlights', val)}
+                showErrors={usptoSpecificSettings.showErrors}
+                setShowErrors={(val) => onUsptoFieldChange('showErrors', val)}
+                plurals={usptoSpecificSettings.plurals}
+                setPlurals={(val) => onUsptoFieldChange('plurals', val)}
+                britishEquivalents={usptoSpecificSettings.britishEquivalents}
+                setBritishEquivalents={(val) => onUsptoFieldChange('britishEquivalents', val)}
+                selectedDatabases={usptoSpecificSettings.selectedDatabases}
+                setSelectedDatabases={handleSelectedDatabasesChange} // <-- Use the new handler here
+                onSearch={() => {}}
+                onClear={() => {}}
+                onPatentNumberSearch={() => {}}
+            />
+        )}
+      </div>
+      <ASTViewer ast={ast} />
     </div>
   );
 };

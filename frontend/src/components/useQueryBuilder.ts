@@ -45,13 +45,13 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
         dateFrom: '', dateTo: '', dateType: 'publication', inventors: [], assignees: [], patentOffices: [], languages: [], status: '', patentType: '', litigation: '',
     });
     const [usptoSpecificSettings, setUsptoSpecificSettings] = useState<UsptoSpecificSettings>({
-        defaultOperator: 'AND', plurals: false, britishEquivalents: true, selectedDatabases: ['US-PGPUB', 'USPAT', 'USOCR'], highlights: 'SINGLE_COLOR', showErrors: true,
+        defaultOperator: 'AND', plurals: true, britishEquivalents: true, selectedDatabases: ['US-PGPUB', 'USPAT'], highlights: 'SINGLE_COLOR', showErrors: true,
     });
     
     // --- DERIVED STATE ---
     const [mainQueryValue, setMainQueryValue] = useState('');
     const [queryLinkHref, setQueryLinkHref] = useState('#');
-    const [ast, setAst] = useState<Record<string, any> | null>(null); // <-- ADDED
+    const [ast, setAst] = useState<Record<string, any> | null>(null);
 
     // --- EFFECT FOR RE-GENERATION ---
     useEffect(() => {
@@ -59,7 +59,7 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
             const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
             setMainQueryValue(result.queryStringDisplay);
             setQueryLinkHref(result.url);
-            setAst(result.ast); // <-- ADDED
+            setAst(result.ast);
         };
         generate();
     }, [searchConditions, googleLikeFields, usptoSpecificSettings, activeFormat]);
@@ -68,6 +68,11 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
     const onFieldChange = useCallback(<K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => {
         setGoogleLikeFields(prev => ({ ...prev, [field]: value }));
     }, []);
+
+    const onUsptoFieldChange = useCallback(<K extends keyof UsptoSpecificSettings>(field: K, value: UsptoSpecificSettings[K]) => {
+        setUsptoSpecificSettings(prev => ({ ...prev, [field]: value }));
+    }, []);
+
 
     const updateSearchConditionText = useCallback((id: string, newText: string) => {
         setSearchConditions(prev => {
@@ -105,7 +110,7 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
         // State
         mainQueryValue,
         queryLinkHref,
-        ast, // <-- ADDED
+        ast,
         searchConditions,
         googleLikeFields,
         usptoSpecificSettings,
@@ -113,6 +118,8 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
         // Handlers
         setGoogleLikeFields,
         onFieldChange,
+        setUsptoSpecificSettings,
+        onUsptoFieldChange,
         updateSearchConditionText,
         removeSearchCondition,
         handleParseAndApply,

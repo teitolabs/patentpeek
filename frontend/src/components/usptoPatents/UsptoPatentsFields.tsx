@@ -1,7 +1,6 @@
 // src/components/usptoPatents/UsptoPatentsFields.tsx
 import React from 'react';
 
-// ADD 'export' HERE
 export interface UsptoPatentsFieldsProps {
   defaultOperator: string;
   setDefaultOperator: (value: string) => void;

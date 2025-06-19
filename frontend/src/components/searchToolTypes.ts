@@ -48,9 +48,6 @@ export interface GoogleLikeSearchFields {
   litigation: LitigationStatus;
 }
 
-// --- THIS IS THE CRITICAL FIX ---
-// We are moving this interface here to be a shared, central type definition.
-// This version is also complete, matching the backend model.
 export interface UsptoSpecificSettings {
   defaultOperator: string;
   plurals: boolean;
