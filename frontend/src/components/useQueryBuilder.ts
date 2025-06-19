@@ -6,6 +6,8 @@ import {
     UsptoSpecificSettings 
 } from './searchToolTypes';
 import { generateQuery, parseQuery } from './googlePatents/googleApi';
+import { generateUsptoQuery } from './usptoPatents/usptoQueryBuilder';
+
 
 // Helper to manage the empty text box at the end of the list
 const manageSearchConditionInputs = (conditions: SearchCondition[]): SearchCondition[] => {
@@ -44,9 +46,17 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
     const [googleLikeFields, setGoogleLikeFields] = useState<GoogleLikeSearchFields>({
         dateFrom: '', dateTo: '', dateType: 'publication', inventors: [], assignees: [], patentOffices: [], languages: [], status: '', patentType: '', litigation: '',
     });
+    // --- THIS IS THE FIX ---
+    // Updated the initial state for USPTO settings per your request.
     const [usptoSpecificSettings, setUsptoSpecificSettings] = useState<UsptoSpecificSettings>({
-        defaultOperator: 'AND', plurals: true, britishEquivalents: true, selectedDatabases: ['US-PGPUB', 'USPAT'], highlights: 'SINGLE_COLOR', showErrors: true,
+        defaultOperator: 'OR',
+        plurals: true,
+        britishEquivalents: true,
+        selectedDatabases: ['US-PGPUB', 'USPAT', 'USOCR'],
+        highlights: 'SINGLE_COLOR',
+        showErrors: true,
     });
+    const [usptoQuery, setUsptoQuery] = useState('');
     
     // --- DERIVED STATE ---
     const [mainQueryValue, setMainQueryValue] = useState('');
@@ -55,14 +65,20 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
 
     // --- EFFECT FOR RE-GENERATION ---
     useEffect(() => {
-        const generate = async () => {
-            const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
-            setMainQueryValue(result.queryStringDisplay);
-            setQueryLinkHref(result.url);
-            setAst(result.ast);
-        };
-        generate();
-    }, [searchConditions, googleLikeFields, usptoSpecificSettings, activeFormat]);
+        if (activeFormat === 'google') {
+            const generate = async () => {
+                const result = await generateQuery(activeFormat, searchConditions, googleLikeFields, usptoSpecificSettings);
+                setMainQueryValue(result.queryStringDisplay);
+                setQueryLinkHref(result.url);
+                setAst(result.ast);
+            };
+            generate();
+        } else { // activeFormat is 'uspto'
+            const { url } = generateUsptoQuery(usptoQuery, usptoSpecificSettings);
+            setQueryLinkHref(url);
+            setMainQueryValue(usptoQuery); // For USPTO, the main value is the raw query
+        }
+    }, [searchConditions, googleLikeFields, usptoSpecificSettings, activeFormat, usptoQuery]);
 
     // --- HANDLERS TO MODIFY STATE ---
     const onFieldChange = useCallback(<K extends keyof GoogleLikeSearchFields>(field: K, value: GoogleLikeSearchFields[K]) => {
@@ -89,6 +105,11 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
 
     // --- PARSING LOGIC ---
     const handleParseAndApply = useCallback(async (queryString: string) => {
+        if (activeFormat === 'uspto') {
+            setUsptoQuery(queryString);
+            return;
+        }
+
         if (!queryString.trim()) {
             setSearchConditions(manageSearchConditionInputs([]));
             setGoogleLikeFields({ dateFrom: '', dateTo: '', dateType: 'publication', inventors: [], assignees: [], patentOffices: [], languages: [], status: '', patentType: '', litigation: '' });
@@ -114,12 +135,14 @@ export const useQueryBuilder = (activeFormat: PatentFormat) => {
         searchConditions,
         googleLikeFields,
         usptoSpecificSettings,
+        usptoQuery,
 
         // Handlers
         setGoogleLikeFields,
         onFieldChange,
         setUsptoSpecificSettings,
         onUsptoFieldChange,
+        setUsptoQuery,
         updateSearchConditionText,
         removeSearchCondition,
         handleParseAndApply,

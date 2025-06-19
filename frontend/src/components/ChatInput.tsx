@@ -13,7 +13,6 @@ import {
 import GooglePatentsFields from './googlePatents/GooglePatentsFields';
 import UsptoPatentsFields from './usptoPatents/UsptoPatentsFields';
 import { parseQuery } from './googlePatents/googleApi';
-import { generateUsptoQuery } from './usptoPatents/usptoQueryBuilder';
 import { useQueryBuilder } from './useQueryBuilder';
 import ASTViewer from './ASTViewer';
 
@@ -36,9 +35,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       searchConditions,
       googleLikeFields,
       usptoSpecificSettings,
+      usptoQuery,
       onFieldChange,
       onUsptoFieldChange,
       setUsptoSpecificSettings,
+      setUsptoQuery,
       updateSearchConditionText,
       removeSearchCondition,
       handleParseAndApply,
@@ -46,39 +47,42 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setSearchConditions,
   } = useQueryBuilder(activeFormat);
 
-  // --- START: NEW STATE & HANDLERS FOR USPTO ---
-  const [usptoQuery, setUsptoQuery] = useState('');
 
   const handleUsptoSearch = () => {
-    const { url } = generateUsptoQuery(usptoQuery, usptoSpecificSettings);
-    if (url !== '#') {
-      window.open(url, '_blank', 'noopener,noreferrer');
+    if (queryLinkHref !== '#') {
+      window.open(queryLinkHref, '_blank', 'noopener,noreferrer');
     }
   };
 
   const handleUsptoClear = () => {
     setUsptoQuery('');
   }
-  // --- END: NEW STATE & HANDLERS FOR USPTO ---
 
 
   useEffect(() => {
-    // Only sync the query builder's value for the Google format
     if (activeFormat === 'google') {
       onMainInputChange(mainQueryValue);
     } else {
-        onMainInputChange(''); // Clear parent state for USPTO
+      onMainInputChange('');
     }
   }, [mainQueryValue, activeFormat, onMainInputChange]);
   
   const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onMainInputChange(e.target.value);
+    if (activeFormat === 'google') {
+        onMainInputChange(e.target.value);
+    } else {
+        setUsptoQuery(e.target.value);
+    }
   };
   
   const handleMainQueryKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        await handleParseAndApply(mainQueryValueFromProp);
+        if (activeFormat === 'google') {
+            await handleParseAndApply(mainQueryValueFromProp);
+        } else {
+            handleUsptoSearch();
+        }
     }
   };
 
@@ -183,19 +187,24 @@ const ChatInput: React.FC<ChatInputProps> = ({
         {formatTabs.map(tab => ( <button key={tab.value} onClick={() => handleTabClick(tab.value)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium focus:outline-none ${activeFormat === tab.value ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}> {tab.icon} {tab.label} </button> ))}
       </div>
       
-      {/* --- START: UI FIXES --- */}
-      {/* Only show the 'Generated Query String' for Google */}
-      {activeFormat === 'google' && (
-        <div className="space-y-1 pt-4">
-            <label htmlFor="main-query-input" className="text-sm font-medium text-gray-700">Generated Query String</label>
-            <div className="flex items-start border border-gray-300 rounded-lg shadow-sm focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
-                <a href={queryLinkHref} target="_blank" rel="noopener noreferrer" className={`p-2 mt-1 ${queryLinkHref === '#' ? 'cursor-not-allowed text-gray-400' : 'text-blue-600 hover:bg-gray-100'}`} title={queryLinkHref === '#' ? 'Generate a query to enable link' : 'Open query in new tab'} aria-disabled={queryLinkHref === '#'} onClick={(e) => queryLinkHref === '#' && e.preventDefault()}><LinkIcon size={18} /></a>
-                <textarea id="main-query-input" value={mainQueryValueFromProp} onChange={handleMainQueryDirectInputChange} onKeyDown={handleMainQueryKeyDown} placeholder="Your generated query will appear here... or type a query and press Enter" className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none resize-none" rows={2}/>
-            </div>
+      <div className="space-y-1 pt-4">
+        <label htmlFor="main-query-input" className="block w-full text-center text-sm font-medium text-gray-700">
+          Search Query
+        </label>
+        <div className="flex items-start border border-gray-300 rounded-lg shadow-sm focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
+            <a href={queryLinkHref} target="_blank" rel="noopener noreferrer" className={`p-2 mt-1 ${queryLinkHref === '#' ? 'cursor-not-allowed text-gray-400' : 'text-blue-600 hover:bg-gray-100'}`} title={queryLinkHref === '#' ? 'Generate a query to enable link' : 'Open query in new tab'} aria-disabled={queryLinkHref === '#'} onClick={(e) => queryLinkHref === '#' && e.preventDefault()}><LinkIcon size={18} /></a>
+            <textarea 
+                id="main-query-input"
+                value={activeFormat === 'google' ? mainQueryValueFromProp : usptoQuery}
+                onChange={handleMainQueryDirectInputChange} 
+                onKeyDown={handleMainQueryKeyDown}
+                placeholder="Type a search query directly and/or use the search fields below."
+                className="w-full p-2 border-none focus:ring-0 text-sm bg-transparent outline-none resize-none"
+                rows={2}
+            />
         </div>
-      )}
+      </div>
 
-      {/* Only show the "Search Terms" section for Google */}
       {activeFormat === 'google' && (
         <div className="pt-4 border-t border-gray-200">
             <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3"> <Wand2 className="h-5 w-5 mr-2 text-blue-600" /> Search Terms </h3>
@@ -205,21 +214,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 return ( <div key={condition.id} className="border border-gray-300 rounded-md bg-white shadow-sm flex items-center">{renderSearchConditionRow(condition, canBeRemoved)}</div> );
             })}
             </div>
-        </div>
-      )}
-
-      {/* For USPTO, show the large query input text area */}
-      {activeFormat === 'uspto' && (
-        <div className="pt-4 space-y-2">
-            <label htmlFor="uspto-query-input" className="text-sm font-medium text-gray-700">Enter query text</label>
-            <textarea 
-                id="uspto-query-input"
-                value={usptoQuery}
-                onChange={(e) => setUsptoQuery(e.target.value)}
-                placeholder="e.g., electric motor OR TTL/(hybrid vehicle) AND APD/>=1/1/2020"
-                className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                rows={4}
-            />
         </div>
       )}
 
@@ -249,7 +243,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
         )}
       </div>
       {activeFormat === 'google' && <ASTViewer ast={ast} />}
-      {/* --- END: UI FIXES --- */}
     </div>
   );
 };
