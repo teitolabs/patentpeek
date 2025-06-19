@@ -10,12 +10,7 @@ class TextSearchData(BaseModel):
     type: Literal["TEXT"]
     text: str
 
-# REMOVED: ClassificationSearchData, ChemistrySearchData, MeasureSearchData, NumbersSearchData
-# as they are part of an orphaned feature.
-
 # The SearchCondition model is now greatly simplified.
-# The `data` field no longer needs to be a Union or use a discriminator
-# as only one type of condition data is now supported.
 class SearchCondition(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Literal["TEXT"]
@@ -58,13 +53,12 @@ class GenerateRequest(BaseModel):
 class GenerateResponse(BaseModel):
     queryStringDisplay: str
     url: str
+    ast: Optional[Dict[str, Any]] = None # <-- ADDED
 
 class ParseRequest(BaseModel):
     format: Literal["google", "uspto"]
     queryString: str
 
-# ParseResponse remains as-is for now, as a future parse implementation
-# might need to populate a more complex structure.
 class ParseResponse(BaseModel):
     searchConditions: List[SearchCondition]
     googleLikeFields: GoogleLikeSearchFields

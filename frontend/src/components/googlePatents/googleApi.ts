@@ -1,12 +1,9 @@
 // src/components/googlePatents/googleApi.ts
 import { PatentFormat } from '../../types';
-// FIX: Changed the import path to the correct location for these types.
 import { SearchCondition, TextSearchCondition, SearchToolType, GoogleLikeSearchFields } from '../searchToolTypes';
 import { UsptoSpecificSettings } from '../usptoPatents/usptoQueryBuilder';
 
 // --- START: Define Payload-Specific Types ---
-// These types match the backend's Pydantic models exactly.
-
 interface TextSearchDataPayload {
   type: "TEXT";
   text: string;
@@ -17,13 +14,13 @@ interface SearchConditionPayload {
   type: SearchToolType;
   data: TextSearchDataPayload;
 }
-
 // --- END: Payload-Specific Types ---
 
 
 export interface GenerateResponse {
   queryStringDisplay: string;
   url: string;
+  ast: Record<string, any> | null; // <-- ADDED
 }
 
 export interface ParseResponse {
@@ -47,8 +44,6 @@ export const generateQuery = async (
   googleLikeFields: GoogleLikeSearchFields,
   usptoSpecificSettings: UsptoSpecificSettings,
 ): Promise<GenerateResponse> => {
-  // Process the state into a JSON-compatible payload.
-  // Since only TEXT conditions are supported, this is now simpler.
   const processedSearchConditions: SearchConditionPayload[] = searchConditions.map(condition => {
       const textData = condition.data as TextSearchCondition['data'];
       return {
@@ -70,12 +65,12 @@ export const generateQuery = async (
     const result = await response.json();
     if (!response.ok) {
       const errorMessage = result.detail ? JSON.stringify(result.detail) : (result.error || 'Error from server');
-      return { queryStringDisplay: `Validation Error: ${errorMessage}`, url: '#' };
+      return { queryStringDisplay: `Validation Error: ${errorMessage}`, url: '#', ast: null };
     }
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Network error.";
-    return { queryStringDisplay: `API Error: ${errorMessage}`, url: "#" };
+    return { queryStringDisplay: `API Error: ${errorMessage}`, url: "#", ast: null };
   }
 };
 

@@ -1,5 +1,4 @@
 // src/components/ChatInput.tsx
-// --- FIX: Removed unused 'useCallback', added 'useEffect' ---
 import React, { useState, useRef, useEffect } from 'react';
 import { PatentFormat } from '../types';
 import {
@@ -13,7 +12,8 @@ import {
 
 import GooglePatentsFields from './googlePatents/GooglePatentsFields';
 import { parseQuery } from './googlePatents/googleApi';
-import { useQueryBuilder } from './useQueryBuilder'; // Import the new hook
+import { useQueryBuilder } from './useQueryBuilder';
+import ASTViewer from './ASTViewer'; // <-- ADDED
 
 const FIELDED_SYNTAX_HEURISTIC = /^\s*(inventor|assignee|cpc|ipc|pn|after|before|country|lang|status|type|is:litigated)[:=]/i;
 
@@ -27,10 +27,10 @@ export interface ChatInputProps {
 const ChatInput: React.FC<ChatInputProps> = ({
   value: mainQueryValueFromProp, activeFormat, onTabChange, onMainInputChange,
 }) => {
-  // --- Use the custom hook to manage all state and logic ---
   const {
       mainQueryValue,
       queryLinkHref,
+      ast, // <-- ADDED
       searchConditions,
       googleLikeFields,
       onFieldChange,
@@ -41,21 +41,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setSearchConditions,
   } = useQueryBuilder(activeFormat);
 
-  // This effect syncs the hook's generated query string back up to the parent.
   useEffect(() => {
     onMainInputChange(mainQueryValue);
   }, [mainQueryValue, onMainInputChange]);
 
   const handleMainQueryDirectInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // We still call the parent's handler to update the text,
-    // but parsing only happens on Enter.
     onMainInputChange(e.target.value);
   };
   
   const handleMainQueryKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        // Use the hook's function to parse and update the entire state
         await handleParseAndApply(mainQueryValueFromProp);
     }
   };
@@ -64,7 +60,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   const processIndividualTerm = async (id: string, text: string) => {
       if (!FIELDED_SYNTAX_HEURISTIC.test(text)) {
-          return; // Not a fielded query, nothing more to do
+          return;
       }
       
       try {
@@ -72,7 +68,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           
           setGoogleLikeFields((prevFields: GoogleLikeSearchFieldsType) => {
               const newFields = { ...prevFields };
-              // Merge fields instead of replacing them
               newFields.inventors = [...new Set([...prevFields.inventors, ...result.googleLikeFields.inventors])];
               newFields.assignees = [...new Set([...prevFields.assignees, ...result.googleLikeFields.assignees])];
               newFields.patentOffices = [...new Set([...prevFields.patentOffices, ...result.googleLikeFields.patentOffices])];
@@ -121,7 +116,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     );
   };
 
-  // --- Local UI State (can remain in the component) ---
   const [currentInventorInput, setCurrentInventorInput] = useState('');
   const [currentAssigneeInput, setCurrentAssigneeInput] = useState('');
   const inventorInputRef = useRef<HTMLInputElement>(null);
@@ -184,6 +178,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <h3 className="text-lg font-medium text-gray-700 mb-3">Search Fields</h3>
             <GooglePatentsFields fields={googleLikeFields} onFieldChange={onFieldChange} onPatentOfficeToggle={onPatentOfficeToggle} onLanguageToggle={onLanguageToggle} onAddDynamicEntry={onAddDynamicEntry} onRemoveDynamicEntry={onRemoveDynamicEntry} currentInventorInput={currentInventorInput} setCurrentInventorInput={setCurrentInventorInput} currentAssigneeInput={currentAssigneeInput} setCurrentAssigneeInput={setCurrentAssigneeInput} inventorInputRef={inventorInputRef} assigneeInputRef={assigneeInputRef} isPatentOfficeDropdownOpen={isPatentOfficeDropdownOpen} setIsPatentOfficeDropdownOpen={setIsPatentOfficeDropdownOpen} isLanguageDropdownOpen={isLanguageDropdownOpen} setIsLanguageDropdownOpen={setIsLanguageDropdownOpen} patentOfficeRef={patentOfficeRef} languageRef={languageRef} />
           </div>
+          <ASTViewer ast={ast} /> {/* <-- ADDED */}
         </>
       )}
     </div>
