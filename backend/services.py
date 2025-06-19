@@ -56,13 +56,21 @@ def _build_query_components(req: models.GenerateRequest) -> Tuple[List[ASTNode],
                     continue
                 
                 # --- THIS IS THE FIX ---
-                # Wrap the raw text from the search term box in parentheses before parsing.
-                # This treats it as a valid grouped expression according to the new grammar rules.
-                query_to_parse = f"({text_input})"
-                parsed_ast_root = PARSERS["google"].parse(query_to_parse)
+                # Instead of sending the raw text to the full parser, we now treat
+                # everything from a search term box as a simple list of words to be AND'ed.
+                # This ensures that user-entered 'and'/'or' are treated as regular words.
+                term_values = text_input.split()
+                if not term_values:
+                    continue
 
-                if not isinstance(parsed_ast_root.query, TermNode) or parsed_ast_root.query.value != "__EMPTY__":
-                    ast_nodes.append(parsed_ast_root.query)
+                term_nodes = [TermNode(val) for val in term_values]
+                
+                if len(term_nodes) == 1:
+                    ast_nodes.append(term_nodes[0])
+                else:
+                    # Combine the terms with an implicit AND.
+                    ast_nodes.append(BooleanOpNode("AND", term_nodes))
+
 
     if req.googleLikeFields:
         fields = req.googleLikeFields
@@ -147,9 +155,7 @@ def generate_query(req: models.GenerateRequest) -> models.GenerateResponse:
             generated_str = generator.generate(QueryRootNode(query=node))
             if generated_str:
                 url_params_list.append(UrlParam('q', generated_str).to_string())
-                # --- THIS IS THE FIX ---
                 # Always wrap expressions from the search term boxes in parentheses for clarity
-                # and to ensure they are treated as a distinct group.
                 display_parts.append(f"({generated_str})")
 
         for param in top_level_params:
@@ -247,7 +253,7 @@ def parse_query(req: models.ParseRequest) -> models.ParseResponse:
             searchConditions=[models.SearchCondition(
                 id=str(uuid.uuid4()), type="TEXT", data={"type": "TEXT", "text": req.queryString, "error": ast_root.query.value}
             )],
-            googleLikeFields=models.GoogleLikeSearchFields(dateFrom="", dateTo="", dateType="publication", inventors=[], assignees=[], patentOffices=[], languages=[], status="", patentType="", litigation=""),
+            googleLikeSearchFields=models.GoogleLikeSearchFields(dateFrom="", dateTo="", dateType="publication", inventors=[], assignees=[], patentOffices=[], languages=[], status="", patentType="", litigation=""),
             usptoSpecificSettings=models.UsptoSpecificSettings(defaultOperator="AND", plurals=False, britishEquivalents=True, selectedDatabases=['US-PGPUB', 'USPAT', 'USOCR'], highlights='SINGLE_COLOR', showErrors=True)
         )
 

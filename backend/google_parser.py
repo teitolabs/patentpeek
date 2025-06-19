@@ -37,76 +37,38 @@ TOKENIZE_REGEX = re.compile(
 )
 FIELD_REGEX = re.compile(r"^(\w+)([:=])(.+)$", re.IGNORECASE)
 DATE_REGEX = re.compile(r"^(after|before):(\w+):(.+)$", re.IGNORECASE)
-OPERATOR_REGEX = re.compile(r"^(AND|OR|NOT|XOR|ADJ\d*|NEAR\d*|WITH|SAME)$", re.IGNORECASE)
+# Proximity operators are still special
+PROXIMITY_OPERATOR_REGEX = re.compile(r"^(ADJ\d*|NEAR\d*|WITH|SAME)$", re.IGNORECASE)
 
 
 class GoogleQueryParser:
 
-    def _insert_implicit_ands(self, tokens: List[str]) -> List[str]:
-        """Inserts 'AND' operators between adjacent terms that are not operators."""
-        if not tokens:
-            return []
-        
-        processed_tokens = [tokens[0]]
-        for i in range(1, len(tokens)):
-            # If the previous token and current token are not operators, insert AND
-            is_prev_op = OPERATOR_REGEX.match(tokens[i-1]) or tokens[i-1] == '('
-            is_curr_op = OPERATOR_REGEX.match(tokens[i]) or tokens[i] == ')'
-            if not is_prev_op and not is_curr_op:
-                processed_tokens.append("AND")
-            processed_tokens.append(tokens[i])
-        return processed_tokens
-
     def _parse_expression(self, tokens: List[str]) -> ASTNode:
-        """Parses a list of tokens into an AST, handling operators."""
-        
-        values: List[ASTNode] = []
-        ops: List[str] = []
-        
-        precedence = {"OR": 1, "XOR": 2, "AND": 3, "NEAR": 4, "ADJ": 4, "WITH": 4, "SAME": 4, "NOT": 5}
+        """
+        Parses a list of tokens into an AST.
+        This simplified version treats all non-proximity operators as regular terms.
+        """
+        if not tokens:
+            return TermNode("__EMPTY__")
 
-        def apply_op():
-            op = ops.pop().upper()
+        # Handle proximity operators first
+        if len(tokens) == 3 and PROXIMITY_OPERATOR_REGEX.match(tokens[1]):
+            op_token = tokens[1]
+            m = re.match(r"^(ADJ|NEAR|WITH|SAME)(\d*)$", op_token, re.I)
+            op_type, dist_val_str = m.group(1).upper(), m.group(2)
+            distance = int(dist_val_str) if dist_val_str else None
             
-            # Unary operators
-            if op == 'NOT':
-                right = values.pop()
-                values.append(BooleanOpNode("NOT", [right]))
-                return
+            left = self._parse_atom(tokens[0])
+            right = self._parse_atom(tokens[2])
+            return ProximityOpNode(op_type, [left, right], distance=distance) # type: ignore
 
-            # Binary operators
-            right = values.pop()
-            left = values.pop()
-
-            if op.startswith(("ADJ", "NEAR", "WITH", "SAME")):
-                 m = re.match(r"^(ADJ|NEAR|WITH|SAME)(\d*)$", op, re.I)
-                 op_type, dist_val_str = m.group(1).upper(), m.group(2)
-                 distance = int(dist_val_str) if dist_val_str else None
-                 values.append(ProximityOpNode(op_type, [left, right], distance=distance)) # type: ignore
-            else:
-                # Handle repeated ANDs, e.g. a AND b AND c
-                if isinstance(left, BooleanOpNode) and left.operator == op:
-                    left.operands.append(right)
-                    values.append(left)
-                else:
-                    values.append(BooleanOpNode(op, [left, right])) # type: ignore
-
-        for token in tokens:
-            if OPERATOR_REGEX.match(token):
-                op_upper = token.upper()
-                base_op = re.match(r"^\D+", op_upper).group(0)
-                
-                while ops and precedence.get(ops[-1].upper(), 0) >= precedence.get(base_op, 0):
-                    apply_op()
-                ops.append(token)
-            else:
-                values.append(self._parse_atom(token))
-
-        while ops:
-            apply_op()
+        # Otherwise, treat all tokens as terms to be AND'ed together
+        nodes = [self._parse_atom(t) for t in tokens]
         
-        return values[0] if values else TermNode("__EMPTY__")
-
+        if len(nodes) == 1:
+            return nodes[0]
+        else:
+            return BooleanOpNode("AND", nodes)
 
     def _parse_atom(self, token: str) -> ASTNode:
         """Parses a single token (which can be a group) into an ASTNode."""
@@ -114,11 +76,8 @@ class GoogleQueryParser:
 
         if token.startswith('(') and token.endswith(')'):
             inner_content = token[1:-1]
-            # --- THIS IS THE FIX ---
-            # Tokenize the inner content and apply implicit ANDs before parsing
             inner_tokens = TOKENIZE_REGEX.findall(inner_content)
-            processed_inner_tokens = self._insert_implicit_ands(inner_tokens)
-            return self._parse_expression(processed_inner_tokens)
+            return self._parse_expression(inner_tokens)
 
         if token.startswith('"') and token.endswith('"'):
             return TermNode(token[1:-1], is_phrase=True)
@@ -139,7 +98,6 @@ class GoogleQueryParser:
             canonical_name_tuple = CASE_INSENSITIVE_FIELD_MAP.get(key_lower)
             if canonical_name_tuple:
                 canonical_name = canonical_name_tuple[0]
-                # The value of a field can also be a parenthesized expression
                 return FieldedSearchNode(canonical_name, self._parse_atom(value), system_field_code=key.upper())
         
         if token.lower() == "is:litigated":
@@ -157,17 +115,8 @@ class GoogleQueryParser:
             if not tokens:
                  return QueryRootNode(query=TermNode("__EMPTY__"))
 
-            # Top-level validation rule
-            for token in tokens:
-                if not (token.startswith('(') or OPERATOR_REGEX.match(token) or FIELD_REGEX.match(token)):
-                     raise ValueError(f"Invalid standalone text: '{token}'")
-
-            # Insert implicit ANDs at the top level
-            processed_tokens = self._insert_implicit_ands(tokens)
-            
-            final_ast = self._parse_expression(processed_tokens)
+            final_ast = self._parse_expression(tokens)
             return QueryRootNode(query=final_ast)
         
         except Exception as e:
-            error_msg = str(e) if isinstance(e, ValueError) else "Invalid Expression"
-            return QueryRootNode(query=TermNode(f"PARSE_ERROR: {error_msg}"))
+            return QueryRootNode(query=TermNode(f"PARSE_ERROR: {str(e)}"))
